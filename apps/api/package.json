@@ -1,0 +1,15 @@
+{
+  "name": "@flowforge/api",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@flowforge/shared": "*",
+    "@flowforge/workflow-engine": "*",
+    "fastify": "^5.12.3"
+  }
+}
+

@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  workflows    Workflow[]
+  apiKeys      APIKey[]
+  auditLogs    AuditLog[]
+}
+
+model Workflow {
+  id              String            @id @default(uuid())
+  userId          String
+  name            String
+  status          String            @default("draft") // draft, active, inactive
+  activeVersionId String?
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions        WorkflowVersion[]
+  events          Event[]
+}
+
+model WorkflowVersion {
+  id         String             @id @default(uuid())
+  workflowId String
+  version    Int
+  definition Json               // Stores the complete JSON representation
+  workflow   Workflow           @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodes      WorkflowNode[]
+  edges      WorkflowEdge[]
+  executions Execution[]
+  
+  @@unique([workflowId, version])
+}
+
+model WorkflowNode {
+  id                String          @id @default(uuid())
+  workflowVersionId String
+  nodeId            String          // The ID from the JSON definition
+  type              String
+  config            Json
+  position          Json?
+  workflowVersion   WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowVersionId, nodeId])
+}
+
+model WorkflowEdge {
+  id                String          @id @default(uuid())
+  workflowVersionId String
+  sourceNodeId      String
+  targetNodeId      String
+  workflowVersion   WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id              String      @id @default(uuid())
+  workflowId      String
+  externalEventId String?
+  headers         Json?
+  payload         Json
+  receivedAt      DateTime    @default(now())
+  workflow        Workflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  executions      Execution[]
+}
+
+model Execution {
+  id                String          @id @default(uuid())
+  workflowVersionId String
+  eventId           String
+  status            String          @default("queued") // queued, running, completed, failed
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  workflowVersion   WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  event             Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  nodeExecutions    NodeExecution[]
+}
+
+model NodeExecution {
+  id          String    @id @default(uuid())
+  executionId String
+  nodeId      String
+  status      String    @default("pending") // pending, running, completed, failed
+  input       Json?
+  output      Json?
+  error       String?
+  attempts    Int       @default(0)
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+}
+
+model APIKey {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+

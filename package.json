@@ -1,0 +1,20 @@
+{
+  "name": "flowforge",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently \"npm run dev -w @flowforge/api\" \"npm run dev -w @flowforge/web\"",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

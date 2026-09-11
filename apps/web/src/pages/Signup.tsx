@@ -1,0 +1,112 @@
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { registerSchema, type RegisterInput } from '@flowforge/shared/src/schemas/auth';
+import { Hexagon, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+
+export default function Signup() {
+  const { register: registerUser } = useAuth();
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const onSubmit = async (data: RegisterInput) => {
+    try {
+      setError('');
+      await registerUser(data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create account');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-surface flex flex-col justify-center py-12 sm:px-6 lg:px-8 cyber-grid">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <Link to="/" className="flex justify-center items-center gap-2 group">
+          <img alt="FlowForge Logo" className="w-10 h-10 rounded object-contain drop-shadow-[0_0_8px_rgba(225,29,72,0.6)] group-hover:scale-105 transition-transform" src="/logo.png" />
+          <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">FlowForge</span>
+        </Link>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-on-surface font-headline-md">
+          Create your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-on-surface-variant">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-primary hover:text-primary-container transition-colors">
+            Sign in
+          </Link>
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-surface-container-low py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-outline-variant/50 relative overflow-hidden">
+          
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[100px] bg-primary/10 blur-[80px] pointer-events-none rounded-[100%]" />
+
+          <form className="space-y-6 relative" onSubmit={handleSubmit(onSubmit)}>
+            
+            {error && (
+              <div className="bg-error/10 border border-error/50 text-error p-3 rounded flex items-center gap-2 text-sm">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-on-surface-variant">
+                Email address
+              </label>
+              <div className="mt-1">
+                <input
+                  id="email"
+                  type="email"
+                  {...register('email')}
+                  className="appearance-none block w-full px-3 py-2 border border-outline-variant rounded-md shadow-sm bg-surface text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
+                />
+                {errors.email && <p className="mt-1 text-sm text-error">{errors.email.message}</p>}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-on-surface-variant">
+                Password
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  {...register('password')}
+                  className="appearance-none block w-full px-3 py-2 pr-10 border border-outline-variant rounded-md bg-surface text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {errors.password && <p className="mt-1 text-sm text-error">{errors.password.message}</p>}
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-on-primary-container bg-primary-container hover:bg-secondary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+              >
+                {isSubmitting ? 'Creating account...' : 'Start Building Free'}
+                {!isSubmitting && <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={18} />}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+

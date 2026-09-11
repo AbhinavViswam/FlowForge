@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .cyber-grid {
+    background-size: 32px 32px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+  .crimson-glow {
+    box-shadow: 0 0 0 1px #E11D48, 0 0 20px rgba(225, 29, 72, 0.28);
+  }
+  .crimson-glow-strong {
+    box-shadow: 0 0 14px rgba(225, 29, 72, 0.45);
+  }
+  .cyber-node-bevel {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@keyframes pulseLed {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.animate-led {
+  animation: pulseLed 2s infinite ease-in-out;
+}
+

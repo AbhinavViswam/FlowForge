@@ -1,8 +1,23 @@
+import 'dotenv/config';
 import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import authPlugin from './plugins/auth'
+import authRoutes from './routes/auth'
+import workflowRoutes from './routes/workflows'
 
 const fastify = Fastify({
   logger: true
 })
+
+fastify.register(cors, {
+  origin: 'http://localhost:5173', // Vite default port
+  credentials: true
+})
+
+fastify.register(authPlugin)
+
+fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+fastify.register(workflowRoutes, { prefix: '/api/v1/workflows' })
 
 fastify.get('/', async function handler (request, reply) {
   return { status: 'FlowForge API is running' }
@@ -15,4 +30,3 @@ try {
   fastify.log.error(err)
   process.exit(1)
 }
-

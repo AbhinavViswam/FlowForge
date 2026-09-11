@@ -7,9 +7,16 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/jwt": "^10.2.2",
     "@flowforge/shared": "*",
     "@flowforge/workflow-engine": "*",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "fastify": "^5.12.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6"
   }
 }
-

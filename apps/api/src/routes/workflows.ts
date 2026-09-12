@@ -5,6 +5,7 @@ import {
   updateWorkflowSchema, 
   activateWorkflowSchema 
 } from '@flowforge/shared'
+import { executeWorkflow, DEFAULT_TEST_PAYLOAD } from '@flowforge/workflow-engine'
 
 export default async function workflowRoutes(fastify: FastifyInstance) {
   // All workflow routes require authentication
@@ -120,6 +121,160 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
     })
     
     return { version: activated }
+  })
+
+  fastify.post('/:id/deactivate', async (request, reply) => {
+    const user = request.user as any
+    const { id } = request.params as { id: string }
+    const workflow = await prisma.workflow.findFirst({
+      where: { id, userId: user.id }
+    })
+    if (!workflow) return reply.code(404).send({ error: 'Workflow not found' })
+    await prisma.workflow.update({
+      where: { id },
+      data: { status: 'draft' }
+    })
+    return { success: true }
+  })
+
+  fastify.delete('/:id', async (request, reply) => {
+    const user = request.user as any
+    const { id } = request.params as { id: string }
+    
+    // Find all versions of this workflow
+    const versions = await prisma.workflowVersion.findMany({ where: { workflowId: id } });
+    const versionIds = versions.map(v => v.id);
+
+    // Find all executions for these versions
+    const executions = await prisma.execution.findMany({ where: { workflowVersionId: { in: versionIds } } });
+    const executionIds = executions.map(e => e.id);
+
+    // Manually delete children in order to satisfy foreign key constraints
+    // since the DB was migrated before ON DELETE CASCADE was added
+    await prisma.nodeExecution.deleteMany({ where: { executionId: { in: executionIds } } });
+    await prisma.execution.deleteMany({ where: { workflowVersionId: { in: versionIds } } });
+    await prisma.workflowEdge.deleteMany({ where: { workflowVersionId: { in: versionIds } } });
+    await prisma.workflowNode.deleteMany({ where: { workflowVersionId: { in: versionIds } } });
+    await prisma.workflowVersion.deleteMany({ where: { workflowId: id } });
+    await prisma.event.deleteMany({ where: { workflowId: id } });
+
+    // Finally delete the workflow itself
+    await prisma.workflow.deleteMany({
+      where: { id, userId: user.id }
+    })
+    
+    return { success: true }
+  })
+
+  fastify.post('/:id/test', async (request, reply) => {
+    const user = request.user as any
+    const { id } = request.params as { id: string }
+    const body = (request.body as any) || {}
+    const testPayload = body.payload || DEFAULT_TEST_PAYLOAD
+
+    let definition = body.definition
+    let workflow: any = null
+    let activeVersionId: string | null = null
+
+    if (id !== 'new') {
+      workflow = await prisma.workflow.findFirst({
+        where: { id, userId: user.id },
+        include: {
+          versions: {
+            orderBy: { version: 'desc' },
+            take: 1
+          }
+        }
+      })
+      if (workflow && workflow.versions.length > 0) {
+        activeVersionId = workflow.activeVersionId || workflow.versions[0].id
+        if (!definition) {
+          definition = workflow.versions[0].definition
+        }
+      }
+    }
+
+    if (!definition || !definition.nodes || !Array.isArray(definition.nodes)) {
+      return reply.code(400).send({ error: 'No workflow definition nodes found to execute test.' })
+    }
+
+    const startTime = new Date()
+    const result = await executeWorkflow(definition, testPayload)
+    const finishedTime = new Date()
+
+    // Persist to Prisma if workflow and version exist in DB
+    if (workflow && activeVersionId) {
+      try {
+        const event = await prisma.event.create({
+          data: {
+            workflowId: workflow.id,
+            externalEventId: `test_${Date.now()}`,
+            headers: { 'x-flowforge-trigger': 'manual-test-run' },
+            payload: testPayload,
+            receivedAt: startTime
+          }
+        })
+
+        const execution = await prisma.execution.create({
+          data: {
+            workflowVersionId: activeVersionId,
+            eventId: event.id,
+            status: result.status,
+            startedAt: startTime,
+            finishedAt: finishedTime
+          }
+        })
+
+        for (const [nodeId, nResult] of Object.entries(result.nodeResults)) {
+          await prisma.nodeExecution.create({
+            data: {
+              executionId: execution.id,
+              nodeId,
+              status: nResult.status,
+              input: nResult.input || {},
+              output: nResult.output || {},
+              error: nResult.error || null,
+              attempts: 1
+            }
+          })
+        }
+      } catch (dbErr) {
+        fastify.log.warn({ err: dbErr }, 'Failed to persist test execution trace to DB')
+      }
+    }
+
+    return {
+      success: result.status === 'completed',
+      executionId: result.executionId,
+      status: result.status,
+      totalDurationMs: result.totalDurationMs,
+      nodeResults: result.nodeResults,
+      logs: result.logs,
+      output: result.output,
+      error: result.error
+    }
+  })
+
+  fastify.get('/:id/executions', async (request, reply) => {
+    const user = request.user as any
+    const { id } = request.params as { id: string }
+
+    const workflow = await prisma.workflow.findFirst({
+      where: { id, userId: user.id }
+    })
+    if (!workflow) return reply.code(404).send({ error: 'Workflow not found' })
+
+    const executions = await prisma.execution.findMany({
+      where: { workflowVersion: { workflowId: id } },
+      orderBy: { startedAt: 'desc' },
+      take: 25,
+      include: {
+        event: true,
+        nodeExecutions: true
+      }
+    })
+
+    return { executions }
   })
 }
 

@@ -602,7 +602,7 @@ export default function Editor() {
       return workflowId;
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.error || 'Failed to save workflow');
+      toast.error(`Save failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
       return null;
     } finally {
       setIsDeploying(false);

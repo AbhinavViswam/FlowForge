@@ -78,10 +78,10 @@ export default function Dashboard() {
           await axios.delete(`http://localhost:3000/api/v1/workflows/${id}`, { withCredentials: true });
           toast.success('Workflow deleted successfully');
           fetchWorkflows();
-        } catch (err) {
-          console.error(err);
-          toast.error('Failed to delete workflow');
-        }
+          } catch (err: any) {
+            console.error(err);
+            toast.error(`Delete failed: ${err.response?.data?.error || err.message}`);
+          }
       }
     });
   };

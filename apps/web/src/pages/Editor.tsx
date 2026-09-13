@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { useToast } from 'av-toastx';
 import '@xyflow/react/dist/style.css';
@@ -32,6 +33,8 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 export default function Editor() {
+  const { user } = useAuth();
+  const firstLetter = user?.name ? user.name.charAt(0).toUpperCase() : (user?.email ? user.email.charAt(0).toUpperCase() : 'U');
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -741,7 +744,7 @@ export default function Editor() {
 
   <div className="flex items-center gap-3 pr-3 pl-1">
       <button 
-        onClick={onSave} 
+        onClick={() => onSave()} 
         disabled={isDeploying}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-container-high border border-surface-container-highest hover:bg-surface-container text-on-surface transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
       >
@@ -760,8 +763,12 @@ export default function Editor() {
     </div>
 <div className="h-4 w-[1px] bg-surface-container-highest"></div>
 
-<div className="w-7 h-7 rounded bg-surface-container-high border border-surface-container-highest flex items-center justify-center text-label-sm font-label-sm text-primary font-bold">
-        PA
+<div 
+  onClick={() => navigate('/account')}
+  className="w-7 h-7 rounded bg-surface-container-high border border-surface-container-highest flex items-center justify-center text-label-sm font-label-sm text-primary font-bold cursor-pointer hover:border-primary/50 transition-colors"
+  title="Account Settings"
+>
+        {firstLetter}
       </div>
 </div>
 </header>
@@ -1328,7 +1335,7 @@ export default function Editor() {
   const iconColor = nodeType === 'trigger' ? 'text-primary' : nodeType === 'logic' ? 'text-tertiary' : nodeType === 'ghost' ? 'text-on-surface-variant' : 'text-secondary';
 
   return (
-    <aside className="w-84 border-l border-surface-container-highest dark:border-surface-container-highest bg-[#111215] z-30 shrink-0 flex flex-col justify-between select-none">
+    <aside className="w-[350px] min-w-[350px] max-w-[350px] border-l border-surface-container-highest dark:border-surface-container-highest bg-[#111215] z-30 shrink-0 flex flex-col justify-between select-none overflow-x-hidden">
       <div className="flex flex-col h-full overflow-y-auto">
 
         {/* Sidebar Header */}
@@ -1763,39 +1770,167 @@ export default function Editor() {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Target Endpoint / Resource</label>
-                  <input 
-                    className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
-                    type="text" 
-                    value={(nodeData.subtitle as string) || 'Action'}
-                    onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
-                  />
-                </div>
+                {((nodeData.actionType as string) || 'enrich') === 'http' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Target URL</label>
+                      <input 
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        type="text" 
+                        placeholder="https://api.example.com/v1/data"
+                        value={(nodeData.url as string) || ''}
+                        onChange={(e) => {
+                          updateSelectedNode('url', e.target.value);
+                          updateSelectedNode('subtitle', `${nodeData.method || 'POST'} ${e.target.value}`);
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">HTTP Method</label>
+                        <select 
+                          value={(nodeData.method as string) || 'POST'}
+                          onChange={(e) => {
+                            updateSelectedNode('method', e.target.value);
+                            updateSelectedNode('subtitle', `${e.target.value} ${nodeData.url || 'https://api.endpoint'}`);
+                          }}
+                          className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                        >
+                          <option value="GET">GET</option>
+                          <option value="POST">POST</option>
+                          <option value="PUT">PUT</option>
+                          <option value="PATCH">PATCH</option>
+                          <option value="DELETE">DELETE</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Timeout (ms)</label>
+                        <input 
+                          className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                          type="number" 
+                          value={nodeData.timeoutMs || 5000}
+                          onChange={(e) => updateSelectedNode('timeoutMs', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Headers (JSON)</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        placeholder='{"Authorization": "Bearer {{env.API_KEY}}"}'
+                        value={(nodeData.headers as string) || ''}
+                        onChange={(e) => updateSelectedNode('headers', e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Body Payload (JSON)</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[80px]" 
+                        placeholder='{"userId": "{{customer.id}}", "event": "signup"}'
+                        value={(nodeData.body as string) || ''}
+                        onChange={(e) => updateSelectedNode('body', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">HTTP Method</label>
-                    <select 
-                      defaultValue="POST"
-                      className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
-                    >
-                      <option value="POST">POST</option>
-                      <option value="GET">GET</option>
-                      <option value="PUT">PUT</option>
-                      <option value="DELETE">DELETE</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Timeout (ms)</label>
-                    <input 
-                      className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-xs text-on-surface focus:outline-none focus:border-primary-container" 
-                      type="number" 
-                      defaultValue={nodeData.timeoutMs || 500}
-                      onChange={(e) => updateSelectedNode('timeoutMs', Number(e.target.value))}
-                    />
-                  </div>
-                </div>
+                {((nodeData.actionType as string) || 'enrich') === 'email' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Address</label>
+                      <input 
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        type="text" 
+                        placeholder="{{customer.email}} or user@example.com"
+                        value={(nodeData.toAddress as string) || ''}
+                        onChange={(e) => updateSelectedNode('toAddress', e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Subject</label>
+                      <input 
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        type="text" 
+                        placeholder="Welcome to FlowForge!"
+                        value={(nodeData.subject as string) || ''}
+                        onChange={(e) => updateSelectedNode('subject', e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email Body (Text/HTML)</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container min-h-[100px]" 
+                        placeholder="Hi {{customer.name}},\n\nThanks for signing up!"
+                        value={(nodeData.emailBody as string) || ''}
+                        onChange={(e) => updateSelectedNode('emailBody', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {((nodeData.actionType as string) || 'enrich') === 'sink' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Postgres Table Name</label>
+                      <input 
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        type="text" 
+                        placeholder="public.users"
+                        value={(nodeData.tableName as string) || ''}
+                        onChange={(e) => {
+                          updateSelectedNode('tableName', e.target.value);
+                          updateSelectedNode('subtitle', `Database Sink: ${e.target.value}`);
+                        }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Data Mapping (JSON)</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[100px]" 
+                        placeholder='{"id": "{{event.id}}", "email": "{{customer.email}}", "status": "active"}'
+                        value={(nodeData.dataMapping as string) || ''}
+                        onChange={(e) => updateSelectedNode('dataMapping', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {((nodeData.actionType as string) || 'enrich') === 'ai' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">System Prompt</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        placeholder="You are an expert data analyst. Extract key themes from the feedback."
+                        value={(nodeData.systemPrompt as string) || ''}
+                        onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">User Input Data</label>
+                      <textarea
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        placeholder="{{event.feedback_text}}"
+                        value={(nodeData.userInput as string) || ''}
+                        onChange={(e) => updateSelectedNode('userInput', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {((nodeData.actionType as string) || 'enrich') === 'enrich' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Target Endpoint / Resource</label>
+                      <input 
+                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        type="text" 
+                        value={(nodeData.subtitle as string) || 'Action'}
+                        onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="pt-2 border-t border-surface-container-highest flex items-center justify-between">
                   <div className="flex flex-col">

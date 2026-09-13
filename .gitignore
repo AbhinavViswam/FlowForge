@@ -133,3 +133,9 @@ dist-ssr
 # Project Documentation files
 work_progress.md
 *.pdf
+
+# Temporary scripts and scratch files
+scratch_*.js
+*.tmp
+*.bak
+updateAuth.js

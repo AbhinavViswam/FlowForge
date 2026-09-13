@@ -12,6 +12,8 @@ const api = axios.create({
 interface User {
   id: string;
   email: string;
+  name?: string;
+  dob?: string;
 }
 
 interface AuthContextType {
@@ -20,6 +22,8 @@ interface AuthContextType {
   login: (data: LoginInput) => Promise<void>;
   register: (data: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (data: { name?: string, dob?: string }) => Promise<void>;
+  updatePassword: (data: { currentPassword?: string, newPassword?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,8 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  const updateProfile = async (data: { name?: string, dob?: string }) => {
+    const res = await api.put('/auth/me', data);
+    setUser(res.data.user);
+  };
+
+  const updatePassword = async (data: { currentPassword?: string, newPassword?: string }) => {
+    await api.put('/auth/password', data);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateProfile, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

@@ -70,12 +70,40 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     if (!dbUser) return reply.code(404).send({ error: 'User not found' })
     
-    return { 
-      user: {
-        id: dbUser.id,
-        email: dbUser.email
-      }
-    }
+    return { user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, dob: dbUser.dob } }
   })
-}
 
+  fastify.put('/me', { preValidation: [fastify.authenticate] }, async (request, reply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name: body.name !== undefined ? body.name : undefined,
+        dob: body.dob ? new Date(body.dob) : null,
+      }
+    });
+    return { success: true, user: { id: updated.id, email: updated.email, name: updated.name, dob: updated.dob } };
+  });
+
+  fastify.put('/password', { preValidation: [fastify.authenticate] }, async (request, reply) => {
+    const user = request.user as any;
+    const body = request.body as any;
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!dbUser) return reply.code(404).send({ error: 'User not found' });
+    
+    const isValid = await bcrypt.compare(body.currentPassword, dbUser.passwordHash);
+    if (!isValid) {
+      return reply.code(401).send({ error: 'Current password is incorrect' });
+    }
+
+    const passwordHash = await bcrypt.hash(body.newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash }
+    });
+
+    return { success: true };
+  });
+
+}

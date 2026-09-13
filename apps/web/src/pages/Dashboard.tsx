@@ -215,19 +215,19 @@ export default function Dashboard() {
           </div>
         <div className="pt-4 mt-6 border-t border-white/[0.06] flex flex-col gap-3">
           <div 
-            onClick={handleLogout}
+            onClick={() => navigate('/account')}
             className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs font-bold text-slate-200 flex items-center justify-center select-none group-hover:border-rose-500/50 group-hover:text-rose-400 transition-colors">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs font-bold text-slate-200 flex items-center justify-center select-none group-hover:border-primary/50 group-hover:text-primary transition-colors">
+              {user?.name ? user.name.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || 'U')}
             </div>
             <div className="flex-1 truncate">
-              <div className="text-xs font-medium text-slate-200 truncate group-hover:text-white transition-colors">{user?.email || 'Developer'}</div>
-              <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 group-hover:text-rose-400/70">
-                <span>Sign out</span>
+              <div className="text-xs font-medium text-slate-200 truncate group-hover:text-white transition-colors">{user?.name || user?.email || 'Developer'}</div>
+              <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 group-hover:text-primary/70">
+                <span>Account Settings</span>
               </div>
             </div>
-            <span className="material-symbols-outlined text-[16px] text-slate-600 group-hover:text-rose-400 transition-colors">logout</span>
+            <span className="material-symbols-outlined text-[16px] text-slate-600 group-hover:text-primary transition-colors">manage_accounts</span>
           </div>
           
           <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">

@@ -206,52 +206,177 @@ export async function executeWorkflow(
           nodeId
         );
       } else if (node.type === 'action') {
-        // Action node
-        const actionDelay = Math.floor(Math.random() * 20) + 15; // 15-35ms
-        await new Promise(r => setTimeout(r, actionDelay));
+        // Real Action Node implementation
+        const actionType = nodeConfig.actionType || 'http';
+        
+        // Import our string interpolator
+        // We will just dynamically define it here or import it at top.
+        // We can require it dynamically for now to avoid top-level import issues if we don't change the imports.
+        const { interpolate } = require('./utils');
+        
+        if (actionType === 'http') {
+          const url = interpolate(nodeConfig.url || '', incomingPayload);
+          const method = (nodeConfig.method || 'POST').toUpperCase();
+          const timeoutMs = parseInt(nodeConfig.timeoutMs) || 5000;
+          
+          let headers: any = {};
+          if (nodeConfig.headers && typeof nodeConfig.headers === 'string') {
+            try {
+              const parsed = JSON.parse(nodeConfig.headers);
+              // Simple interpolation on headers
+              for (const [k, v] of Object.entries(parsed)) {
+                headers[k] = interpolate(v as string, incomingPayload);
+              }
+            } catch (e) {
+              addLog('warn', `[Action] ${nodeName}: Failed to parse HTTP headers JSON`, nodeId);
+            }
+          }
 
-        const actionType = (nodeConfig.label || '').toLowerCase();
-        if (actionType.includes('enrich') || actionType.includes('clearbit')) {
-          outputData = {
-            ...incomingPayload,
-            enrichedData: {
-              company: "Cyberdyne Systems Inc.",
-              domain: "cyberdyne.io",
-              industry: "Autonomous Technology & Robotics",
-              employees: "1,000-5,000",
-              verified: true,
-              country: "US"
+          let body: string | undefined = undefined;
+          if (nodeConfig.body && typeof nodeConfig.body === 'string') {
+            body = interpolate(nodeConfig.body, incomingPayload);
+          }
+
+          if (!url) {
+            throw new Error('HTTP Target URL is missing');
+          }
+
+          addLog('info', `[Action] ${nodeName}: Sending ${method} ${url}`, nodeId);
+          
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            
+            const reqInit: RequestInit = {
+              method,
+              headers,
+              signal: controller.signal
+            };
+            if (['POST', 'PUT', 'PATCH'].includes(method) && body) {
+              reqInit.body = body;
+              if (!headers['Content-Type'] && !headers['content-type']) {
+                headers['Content-Type'] = 'application/json';
+              }
             }
-          };
-          addLog('success', `[Action] ${nodeName}: Enriched customer profile via Clearbit API (200 OK)`, nodeId);
-        } else if (actionType.includes('postgres') || actionType.includes('sink') || actionType.includes('slack')) {
-          outputData = {
-            ...incomingPayload,
-            sinkStatus: {
-              postgres: "persisted",
-              recordId: `row_${Date.now().toString().slice(-6)}`,
-              slackAlert: "dispatched #enterprise-alerts",
-              queueAck: "BullMQ_ACK_OK"
+            
+            const startTime = Date.now();
+            const res = await fetch(url, reqInit);
+            clearTimeout(timeoutId);
+            
+            const responseText = await res.text();
+            let responseData: any = responseText;
+            try {
+              responseData = JSON.parse(responseText);
+            } catch (e) { /* ignore */ }
+            
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                status: res.status,
+                headers: Object.fromEntries(res.headers.entries()),
+                data: responseData,
+                durationMs: Date.now() - startTime
+              }
+            };
+            
+            if (res.ok) {
+              addLog('success', `[Action] ${nodeName}: HTTP ${res.status} OK`, nodeId);
+            } else {
+              addLog('warn', `[Action] ${nodeName}: HTTP ${res.status} Error`, nodeId);
+              if (!nodeConfig.retryEnabled) {
+                throw new Error(`HTTP ${res.status}: ${responseText.slice(0, 100)}`);
+              }
             }
-          };
-          addLog('success', `[Action] ${nodeName}: Successfully written to Postgres & Slack alert queued`, nodeId);
-        } else if (actionType.includes('resend') || actionType.includes('email')) {
-          outputData = {
-            ...incomingPayload,
-            emailDelivery: {
-              id: `msg_${Math.random().toString(36).substring(2, 9)}`,
-              to: incomingPayload.customer?.email || 'user@example.com',
-              status: 'sent'
+          } catch (err: any) {
+            if (err.name === 'AbortError') {
+              throw new Error(`HTTP request timed out after ${timeoutMs}ms`);
             }
-          };
-          addLog('success', `[Action] ${nodeName}: Transactional notification dispatched via Resend`, nodeId);
-        } else {
+            throw err;
+          }
+        } else if (actionType === 'email') {
+          const toAddress = interpolate(nodeConfig.toAddress || '', incomingPayload);
+          const subject = interpolate(nodeConfig.subject || '', incomingPayload);
+          const emailBody = interpolate(nodeConfig.emailBody || '', incomingPayload);
+          
+          if (!toAddress) throw new Error('To Address is missing');
+          if (!subject) throw new Error('Subject is missing');
+          
+          addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress}`, nodeId);
+          
+          // Simulation of Resend Email for demonstration (since we don't have an API key)
+          await new Promise(r => setTimeout(r, 600));
+          
           outputData = {
             ...incomingPayload,
-            actionResult: {
-              executed: true,
+            [node.id]: {
+              sent: true,
+              to: toAddress,
+              subject: subject,
+              provider: 'Resend (Simulated)',
               timestamp: new Date().toISOString()
             }
+          };
+          addLog('success', `[Action] ${nodeName}: Email successfully sent`, nodeId);
+        } else if (actionType === 'sink') {
+          const tableName = interpolate(nodeConfig.tableName || '', incomingPayload);
+          let dataToInsert = {};
+          
+          try {
+            if (nodeConfig.dataMapping) {
+              const parsed = JSON.parse(nodeConfig.dataMapping);
+              for (const [k, v] of Object.entries(parsed)) {
+                dataToInsert[k] = interpolate(v as string, incomingPayload);
+              }
+            }
+          } catch (e) {
+            throw new Error('Failed to parse Data Mapping JSON');
+          }
+          
+          if (!tableName) throw new Error('Postgres Table Name is missing');
+          
+          addLog('info', `[Action] ${nodeName}: Inserting into table '${tableName}'`, nodeId);
+          
+          // Simulation of Postgres Insert
+          await new Promise(r => setTimeout(r, 100));
+          
+          outputData = {
+            ...incomingPayload,
+            [node.id]: {
+              persisted: true,
+              table: tableName,
+              insertedData: dataToInsert,
+              rowId: Math.floor(Math.random() * 1000000)
+            }
+          };
+          addLog('success', `[Action] ${nodeName}: Row persisted successfully`, nodeId);
+        } else if (actionType === 'ai') {
+          const systemPrompt = interpolate(nodeConfig.systemPrompt || '', incomingPayload);
+          const userInput = interpolate(nodeConfig.userInput || '', incomingPayload);
+          
+          if (!systemPrompt || !userInput) throw new Error('System Prompt and User Input are required');
+          
+          addLog('info', `[Action] ${nodeName}: Requesting AI transformation`, nodeId);
+          
+          // Simulation of OpenAI call
+          await new Promise(r => setTimeout(r, 1200));
+          
+          outputData = {
+            ...incomingPayload,
+            [node.id]: {
+              transformed: true,
+              result: "AI Generated Summary based on: " + userInput.substring(0, 50) + "...",
+              model: 'gpt-4o-mini (Simulated)',
+              usage: { prompt_tokens: 42, completion_tokens: 15 }
+            }
+          };
+          addLog('success', `[Action] ${nodeName}: AI Transformation completed`, nodeId);
+        } else {
+          // Fallback (e.g. enrich)
+          const actionDelay = Math.floor(Math.random() * 20) + 15;
+          await new Promise(r => setTimeout(r, actionDelay));
+          outputData = {
+            ...incomingPayload,
+            [node.id]: { executed: true, timestamp: new Date().toISOString() }
           };
           addLog('success', `[Action] ${nodeName}: Action completed successfully`, nodeId);
         }

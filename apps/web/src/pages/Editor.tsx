@@ -60,6 +60,7 @@ export default function Editor() {
   const [testResult, setTestResult] = useState<any>(null);
   const [executionsList, setExecutionsList] = useState<any[]>([]);
   const [isLoadingExecutions, setIsLoadingExecutions] = useState(false);
+  const [expandedExecutionId, setExpandedExecutionId] = useState<string | null>(null);
   const [nodeInspectorTab, setNodeInspectorTab] = useState<'config' | 'schema' | 'test'>('config');
   const [singleNodeTestResult, setSingleNodeTestResult] = useState<Record<string, any>>({});
   const [isSingleTesting, setIsSingleTesting] = useState(false);
@@ -76,6 +77,17 @@ export default function Editor() {
       setIsLoadingExecutions(false);
     }
   }, [id]);
+
+  const handleRetryExecution = async (executionId: string) => {
+    try {
+      await axios.post(`http://localhost:3000/api/v1/workflows/${executionId}/retry-execution`, {}, { withCredentials: true });
+      toast.success('Execution re-queued for retry!');
+      setTimeout(fetchExecutions, 1000);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.error || 'Failed to retry execution');
+    }
+  };
 
   useEffect(() => {
     if (id === 'new') { setNodes([]); setEdges([]); } else if (id) {
@@ -1274,25 +1286,76 @@ export default function Editor() {
             {executionsList.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 {executionsList.map((exec) => (
-                  <div key={exec.id} className="p-2.5 rounded bg-[#131417] border border-surface-container-highest flex items-center justify-between text-xs hover:border-primary/40 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-2 h-2 rounded-full ${exec.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-                      <div className="flex flex-col">
-                        <span className="font-code-snippet font-semibold text-on-surface text-[11px]">{exec.id}</span>
-                        <span className="text-[10px] text-on-surface-variant font-code-snippet">
-                          {new Date(exec.startedAt).toLocaleString()} • Event: {exec.event?.externalEventId || exec.event?.id || 'manual'}
+                  <div key={exec.id} className="flex flex-col gap-2 p-2.5 rounded bg-[#131417] border border-surface-container-highest text-xs hover:border-primary/40 transition-colors">
+                    <div 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedExecutionId(prev => prev === exec.id ? null : exec.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full ${exec.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                        <div className="flex flex-col">
+                          <span className="font-code-snippet font-semibold text-on-surface text-[11px]">{exec.id}</span>
+                          <span className="text-[10px] text-on-surface-variant font-code-snippet">
+                            {new Date(exec.startedAt).toLocaleString()} • Event: {exec.event?.externalEventId || exec.event?.id || 'manual'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${exec.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
+                          {exec.status.toUpperCase()}
+                        </span>
+                        <span className="text-on-surface-variant text-[11px] font-code-snippet">
+                          {exec.nodeExecutions?.length || 0} nodes
+                        </span>
+                        <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-2">
+                          {expandedExecutionId === exec.id ? 'expand_less' : 'expand_more'}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${exec.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
-                        {exec.status.toUpperCase()}
-                      </span>
-                      <span className="text-on-surface-variant text-[11px] font-code-snippet">
-                        {exec.nodeExecutions?.length || 0} nodes
-                      </span>
-                    </div>
+                    {/* Expanded Details */}
+                    {expandedExecutionId === exec.id && exec.nodeExecutions && (
+                      <div className="mt-2 pt-2 border-t border-surface-container-highest flex flex-col gap-3">
+                        {exec.nodeExecutions.map((nExec: any) => (
+                          <div key={nExec.id} className="flex flex-col gap-1 p-2 bg-[#0c0d10] rounded border border-surface-container-highest">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold font-code-snippet text-on-surface">Node: {nExec.nodeId}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${nExec.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                {nExec.status}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-1">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Input</span>
+                                <pre className="p-1.5 rounded bg-[#131417] text-on-surface-variant text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32">
+                                  {JSON.stringify(nExec.input, null, 2)}
+                                </pre>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Output / Error</span>
+                                <pre className={`p-1.5 rounded bg-[#131417] text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32 ${nExec.error ? 'text-rose-400' : 'text-emerald-300'}`}>
+                                  {nExec.error ? String(nExec.error) : JSON.stringify(nExec.output, null, 2)}
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {exec.status === 'failed' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryExecution(exec.id);
+                            }}
+                            className="mt-2 py-1.5 px-3 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/40 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">replay</span>
+                            Manual Retry
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -26,11 +26,17 @@ export default function Dashboard() {
     onConfirm: () => void;
   } | null>(null);
 
+  const [stats, setStats] = useState({ totalExecutions: 0, successRate: 0 });
+
   const fetchWorkflows = async () => {
     if (!user) return;
     try {
-      const res = await axios.get('http://localhost:3000/api/v1/workflows', { withCredentials: true });
-      setWorkflows(res.data.workflows || []);
+      const [wfRes, statsRes] = await Promise.all([
+        axios.get('http://localhost:3000/api/v1/workflows', { withCredentials: true }),
+        axios.get('http://localhost:3000/api/v1/workflows/stats', { withCredentials: true })
+      ]);
+      setWorkflows(wfRes.data.workflows || []);
+      setStats(statsRes.data || { totalExecutions: 0, successRate: 0 });
     } catch (err) {
       console.error(err);
       toast.error('Failed to load workflows');
@@ -278,22 +284,22 @@ export default function Dashboard() {
               </div>
               <div className="p-5 rounded-xl border border-white/[0.08] bg-surface flex flex-col justify-between">
                 <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                  <span>Daily Ingestion</span>
+                  <span>Total Executions</span>
                   <span className="material-symbols-outlined text-slate-500 text-[16px]">bolt</span>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-semibold font-display text-white">1.4M</div>
-                  <div className="mt-1 text-xs text-slate-400 font-mono">events / day</div>
+                  <div className="text-2xl font-semibold font-display text-white">{stats.totalExecutions.toLocaleString()}</div>
+                  <div className="mt-1 text-xs text-slate-400 font-mono">total runs</div>
                 </div>
               </div>
               <div className="p-5 rounded-xl border border-white/[0.08] bg-surface flex flex-col justify-between">
                 <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                  <span>P99 Latency</span>
-                  <span className="material-symbols-outlined text-slate-500 text-[16px]">timer</span>
+                  <span>Success Rate</span>
+                  <span className="material-symbols-outlined text-slate-500 text-[16px]">check_circle</span>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-semibold font-display text-white">4.1<span className="text-sm font-normal text-slate-500 ml-0.5">ms</span></div>
-                  <div className="mt-1 text-xs text-emerald-400 font-mono">-0.6ms vs SLA</div>
+                  <div className="text-2xl font-semibold font-display text-white">{stats.successRate}<span className="text-sm font-normal text-slate-500 ml-0.5">%</span></div>
+                  <div className="mt-1 text-xs text-emerald-400 font-mono">Completed Runs</div>
                 </div>
               </div>
               <div className="p-5 rounded-xl border border-white/[0.08] bg-surface flex flex-col justify-between">

@@ -6,6 +6,7 @@ import {
   activateWorkflowSchema 
 } from '@flowforge/shared'
 import { executeWorkflow, DEFAULT_TEST_PAYLOAD } from '@flowforge/workflow-engine'
+import { reloadCronJobs } from '../scheduler'
 
 export default async function workflowRoutes(fastify: FastifyInstance) {
   // All workflow routes require authentication
@@ -35,7 +36,26 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
     return { workflow }
   })
 
-  fastify.get('/:id', async (request, reply) => {
+    fastify.get('/stats', async (request, reply) => {
+      const user = request.user as any
+      const totalExecutions = await prisma.execution.count({
+        where: { workflowVersion: { workflow: { userId: user.id } } }
+      })
+      const successfulExecutions = await prisma.execution.count({
+        where: { 
+          workflowVersion: { workflow: { userId: user.id } },
+          status: 'completed'
+        }
+      })
+      const successRate = totalExecutions === 0 ? 0 : Math.round((successfulExecutions / totalExecutions) * 100)
+      
+      return {
+        totalExecutions,
+        successRate
+      }
+    })
+
+    fastify.get('/:id', async (request, reply) => {
     const user = request.user as any
     const { id } = request.params as { id: string }
     
@@ -120,6 +140,8 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
       return version
     })
     
+    reloadCronJobs()
+
     return { version: activated }
   })
 
@@ -134,8 +156,50 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
       where: { id },
       data: { status: 'draft' }
     })
+    reloadCronJobs();
     return { success: true }
   })
+
+  fastify.post('/:id/retry-execution', async (request, reply) => {
+    const user = request.user as any;
+    const { id: executionId } = request.params as { id: string };
+
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+      include: {
+        workflowVersion: {
+          include: {
+            workflow: true
+          }
+        },
+        event: true
+      }
+    });
+
+    if (!execution || execution.workflowVersion.workflow.userId !== user.id) {
+      return reply.code(404).send({ error: 'Execution not found' });
+    }
+
+    if (execution.status !== 'failed') {
+      return reply.code(400).send({ error: 'Only failed executions can be manually retried' });
+    }
+
+    // Set execution back to queued
+    await prisma.execution.update({
+      where: { id: executionId },
+      data: { status: 'queued' }
+    });
+
+    // Enqueue job for manual retry
+    await workflowQueue.add('execute', {
+      executionId: execution.id,
+      workflowVersionId: execution.workflowVersionId,
+      eventId: execution.eventId,
+      payload: execution.event.payload
+    });
+
+    return { success: true, message: 'Execution successfully re-queued for retry.' };
+  });
 
   fastify.delete('/:id', async (request, reply) => {
     const user = request.user as any

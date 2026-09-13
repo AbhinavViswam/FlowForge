@@ -1,3 +1,5 @@
+import { interpolate } from './utils';
+
 export interface WorkflowNodeDef {
   id: string;
   type: string;
@@ -90,7 +92,8 @@ function evaluateCondition(conditionStr: string, payload: any): boolean {
 
 export async function executeWorkflow(
   definition: WorkflowDefinition, 
-  initialPayload?: any
+  initialPayload?: any,
+  previousResults?: Record<string, NodeExecutionResult>
 ): Promise<WorkflowExecutionResult> {
   const startTime = Date.now();
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -167,6 +170,35 @@ export async function executeWorkflow(
 
     const nodeConfig = node.config || node.data || {};
     const nodeName = nodeConfig.label || `${node.type}_${node.id}`;
+
+    // If node successfully completed in a previous run, skip executing it and use its output
+    if (previousResults && previousResults[node.id] && previousResults[node.id].status === 'completed') {
+      const prev = previousResults[node.id];
+      addLog('info', `[Resume] ${nodeName}: Skipped (already completed)`, node.id);
+      
+      // We must enqueue outgoing edges just like normal so the BFS continues
+      const outgoingEdges = edges.filter(e => e.source === node.id);
+      for (const edge of outgoingEdges) {
+        // If it was a logic node, we might need conditionResult to branch correctly. 
+        // For now we'll just evaluate the logic again quickly if it's a logic node.
+        if (node.type === 'logic') {
+           const condString = nodeConfig.condition || nodeConfig.subtitle || "account_tier === 'enterprise'";
+           const conditionResult = evaluateCondition(condString, prev.input);
+           if (edge.sourceHandle === 'true' && !conditionResult) continue;
+           if (edge.sourceHandle === 'false' && conditionResult) continue;
+        }
+        
+        queue.push({
+          nodeId: edge.target,
+          incomingPayload: prev.output
+        });
+      }
+      
+      // Carry forward the output
+      finalOutput = prev.output;
+      continue;
+    }
+
     const nodeStart = Date.now();
 
     try {
@@ -208,11 +240,6 @@ export async function executeWorkflow(
       } else if (node.type === 'action') {
         // Real Action Node implementation
         const actionType = nodeConfig.actionType || 'http';
-        
-        // Import our string interpolator
-        // We will just dynamically define it here or import it at top.
-        // We can require it dynamically for now to avoid top-level import issues if we don't change the imports.
-        const { interpolate } = require('./utils');
         
         if (actionType === 'http') {
           const url = interpolate(nodeConfig.url || '', incomingPayload);
@@ -319,7 +346,7 @@ export async function executeWorkflow(
           addLog('success', `[Action] ${nodeName}: Email successfully sent`, nodeId);
         } else if (actionType === 'sink') {
           const tableName = interpolate(nodeConfig.tableName || '', incomingPayload);
-          let dataToInsert = {};
+          let dataToInsert: any = {};
           
           try {
             if (nodeConfig.dataMapping) {

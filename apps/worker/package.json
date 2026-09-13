@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js"
   },
   "dependencies": {
     "@flowforge/shared": "*",
     "@flowforge/workflow-engine": "*",
+    "@prisma/client": "^5.22.0",
     "bullmq": "^6.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }
-

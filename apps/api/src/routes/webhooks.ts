@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../db'
 import { executeWorkflow, DEFAULT_TEST_PAYLOAD } from '@flowforge/workflow-engine'
+import { workflowQueue } from '../queue'
 
 export default async function webhookRoutes(fastify: FastifyInstance) {
   // Public webhook ingestion endpoint - accessible without user session cookies
@@ -86,46 +87,38 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       }
     })
 
-    // Execute workflow graph through engine
-    const result = await executeWorkflow(definition, payload)
-    const finishedTime = new Date()
-
-    // Persist Execution and NodeExecution trace
+    // Persist Execution trace
     const execution = await prisma.execution.create({
       data: {
         workflowVersionId: version.id,
         eventId: event.id,
-        status: result.status,
+        status: 'queued',
         startedAt: startTime,
-        finishedAt: finishedTime
       }
     })
 
-    for (const [nodeId, nResult] of Object.entries(result.nodeResults)) {
-      await prisma.nodeExecution.create({
-        data: {
-          executionId: execution.id,
-          nodeId,
-          status: nResult.status,
-          input: nResult.input || {},
-          output: nResult.output || {},
-          error: nResult.error || null,
-          attempts: 1
-        }
-      })
-    }
+    // Enqueue the job for the worker with exponential backoff (up to 4 attempts: 1s, 2s, 4s...)
+    await workflowQueue.add('execute', {
+      executionId: execution.id,
+      workflowVersionId: version.id,
+      eventId: event.id,
+      payload: payload
+    }, {
+      attempts: 4,
+      backoff: {
+        type: 'exponential',
+        delay: 2000
+      }
+    });
 
-    return reply.code(200).send({
+    return reply.code(202).send({
       received: true,
       workflowId: workflow.id,
       workflowName: workflow.name,
       eventId: event.id,
       executionId: execution.id,
-      status: result.status,
-      totalDurationMs: result.totalDurationMs,
-      nodeCount: Object.keys(result.nodeResults).length,
-      logs: result.logs,
-      output: result.output
+      status: 'queued',
+      message: 'Event accepted and queued for execution.'
     })
   })
 

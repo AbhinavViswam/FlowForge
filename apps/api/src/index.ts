@@ -31,9 +31,53 @@ fastify.get('/', async function handler (request, reply) {
 // Run the server!
 try {
   initScheduler(); // Start the cron background jobs
-  fastify.listen({ port: 3000, host: '0.0.0.0' })
+  fastify.listen({ port: 3000, host: '0.0.0.0' }, (err, address) => {
+    if (err) throw err;
+    console.log(`Server listening at ${address}`);
+
+    const { Server } = require('socket.io');
+    const Redis = require('ioredis');
+
+    const io = new Server(fastify.server, {
+      cors: {
+        origin: "http://localhost:5173",
+        methods: ["GET", "POST"],
+        credentials: true
+      }
+    });
+
+    io.on('connection', (socket: any) => {
+      console.log('[Socket] Client connected:', socket.id);
+      
+      socket.on('join_workflow', (workflowId: string) => {
+        socket.join(`workflow:${workflowId}`);
+        console.log(`[Socket] ${socket.id} joined workflow:${workflowId}`);
+      });
+    });
+
+    const redisSubscriber = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    });
+
+    redisSubscriber.subscribe('workflow-events', (subscribeErr: any) => {
+      if (subscribeErr) console.error('[Redis] Failed to subscribe', subscribeErr);
+    });
+
+    redisSubscriber.on('message', (channel: string, message: string) => {
+      if (channel === 'workflow-events') {
+        try {
+          const data = JSON.parse(message);
+          if (data.workflowId) {
+            io.to(`workflow:${data.workflowId}`).emit('workflow_event', data);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    });
+  });
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
 }
-// touch

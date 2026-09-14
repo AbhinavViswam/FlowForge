@@ -21,6 +21,8 @@ import TriggerNode from '../components/nodes/TriggerNode';
 import LogicNode from '../components/nodes/LogicNode';
 import ActionNode from '../components/nodes/ActionNode';
 import GhostNode from '../components/nodes/GhostNode';
+import NexusScene from '../components/NexusScene';
+import { io } from 'socket.io-client';
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -46,7 +48,8 @@ export default function Editor() {
   const [isActive, setIsActive] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
-  const [consoleTab, setConsoleTab] = useState<'test' | 'webhook' | 'trace' | 'history'>('test');
+  const [consoleTab, setConsoleTab] = useState<'test' | 'webhook' | 'trace' | 'history' | 'nexus'>('test');
+  const [activeEvent, setActiveEvent] = useState<any>(null);
   const [testPayloadText, setTestPayloadText] = useState(JSON.stringify({
     event: "order.created",
     account_tier: "enterprise",
@@ -64,6 +67,16 @@ export default function Editor() {
   const [nodeInspectorTab, setNodeInspectorTab] = useState<'config' | 'schema' | 'test'>('config');
   const [singleNodeTestResult, setSingleNodeTestResult] = useState<Record<string, any>>({});
   const [isSingleTesting, setIsSingleTesting] = useState(false);
+
+  const healthState = React.useMemo(() => {
+    if (!executionsList || executionsList.length === 0) return 'healthy';
+    const recent = executionsList.slice(0, 10);
+    const failures = recent.filter(e => e.status === 'failed').length;
+    const failureRate = failures / recent.length;
+    if (failureRate >= 0.2) return 'incident';
+    if (failureRate > 0) return 'degraded';
+    return 'healthy';
+  }, [executionsList]);
 
   const fetchExecutions = useCallback(async () => {
     if (!id || id === 'new') return;
@@ -130,7 +143,31 @@ export default function Editor() {
 
       fetchExecutions();
     }
-  }, [id, setNodes, setEdges, fetchExecutions]);
+  }, [id, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (!id || id === 'new') return;
+    
+    const socket = io('http://localhost:3000', { withCredentials: true });
+    
+    socket.on('connect', () => {
+      socket.emit('join_workflow', id);
+    });
+    
+    socket.on('workflow_event', (event) => {
+      console.log('Live Event Received:', event);
+      setActiveEvent(event);
+      
+      // Auto-refresh history if a new execution finishes
+      if (event.type === 'execution_finished') {
+        fetchExecutions();
+      }
+    });
+    
+    return () => {
+      socket.disconnect();
+    };
+  }, [id, fetchExecutions]);
 
   const loadPayloadPreset = (presetName: string) => {
     let preset: any = {};
@@ -1018,6 +1055,17 @@ export default function Editor() {
             <span className="material-symbols-outlined text-[14px] text-primary-container">history</span>
             <span>Run History ({executionsList.length})</span>
           </button>
+
+          <button 
+            onClick={() => setConsoleTab('nexus')}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'nexus' ? 'border-indigo-400 text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+          >
+            <span className="material-symbols-outlined text-[14px] text-indigo-400">view_in_ar</span>
+            <span>Nexus 3D Viewer</span>
+            {activeEvent && activeEvent.type === 'execution_started' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            )}
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1365,6 +1413,12 @@ export default function Editor() {
                 <span>No executions recorded yet. Run a test or trigger the Webhook URL.</span>
               </div>
             )}
+          </div>
+        )}
+
+        {consoleTab === 'nexus' && (
+          <div className="h-full w-full p-2 bg-[#0c0d10]">
+            <NexusScene nodes={nodes} edges={edges} activeEvent={activeEvent} healthState={healthState as any} />
           </div>
         )}
       </div>

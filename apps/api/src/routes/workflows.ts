@@ -7,6 +7,8 @@ import {
 } from '@flowforge/shared'
 import { executeWorkflow, DEFAULT_TEST_PAYLOAD } from '@flowforge/workflow-engine'
 import { reloadCronJobs } from '../scheduler'
+import { workflowQueue } from '../queue'
+import { generateWorkflow } from '../ai'
 
 export default async function workflowRoutes(fastify: FastifyInstance) {
   // All workflow routes require authentication
@@ -15,8 +17,7 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
   fastify.get('/', async (request, reply) => {
     const user = request.user as any
     const workflows = await prisma.workflow.findMany({
-      where: { userId: user.id },
-      orderBy: { id: 'desc' }
+      where: { userId: user.id }
     })
     return { workflows }
   })
@@ -32,6 +33,29 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
         status: 'draft'
       }
     })
+
+    if (data.prompt) {
+      // AI generation
+      const definition = await generateWorkflow(data.prompt);
+      
+      // Save it into a new draft version
+      await prisma.workflowVersion.create({
+        data: {
+          workflowId: workflow.id,
+          version: 1,
+          definition
+        }
+      });
+      
+      // Update active version to the generated one so it's loaded in UI
+      const updatedWorkflow = await prisma.workflow.update({
+        where: { id: workflow.id },
+        data: {
+          activeVersionId: (await prisma.workflowVersion.findFirst({ where: { workflowId: workflow.id } }))?.id
+        }
+      });
+      return { workflow: updatedWorkflow };
+    }
     
     return { workflow }
   })

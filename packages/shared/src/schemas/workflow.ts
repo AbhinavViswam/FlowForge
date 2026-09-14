@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const createWorkflowSchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  prompt: z.string().optional(),
 });
 export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
 

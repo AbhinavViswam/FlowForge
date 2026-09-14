@@ -93,7 +93,9 @@ function evaluateCondition(conditionStr: string, payload: any): boolean {
 export async function executeWorkflow(
   definition: WorkflowDefinition, 
   initialPayload?: any,
-  previousResults?: Record<string, NodeExecutionResult>
+  previousResults?: Record<string, NodeExecutionResult>,
+  onLog?: (log: WorkflowLog) => void,
+  onNodeComplete?: (res: NodeExecutionResult) => void
 ): Promise<WorkflowExecutionResult> {
   const startTime = Date.now();
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -101,12 +103,14 @@ export async function executeWorkflow(
   const nodeResults: Record<string, NodeExecutionResult> = {};
 
   const addLog = (level: WorkflowLog['level'], message: string, nodeId?: string) => {
-    logs.push({
+    const log: WorkflowLog = {
       timestamp: new Date().toISOString().split('T')[1].slice(0, 12),
       level,
       nodeId,
       message
-    });
+    };
+    logs.push(log);
+    if (onLog) onLog(log);
   };
 
   const nodes = definition.nodes || [];
@@ -320,6 +324,32 @@ export async function executeWorkflow(
             }
             throw err;
           }
+        } else if (actionType === 'instagram') {
+          const igAction = nodeConfig.action || 'publish_photo';
+          const mediaUrl = interpolate(nodeConfig.mediaUrl || '', incomingPayload);
+          const caption = interpolate(nodeConfig.caption || '', incomingPayload);
+          
+          addLog('info', `[Action] ${nodeName}: Connecting to Instagram (${igAction})`, nodeId);
+          
+          if (igAction === 'publish_photo') {
+            if (!mediaUrl) throw new Error('Instagram Media URL is required');
+            addLog('info', `[Action] ${nodeName}: Publishing photo: ${mediaUrl}`, nodeId);
+            await new Promise(r => setTimeout(r, 1500)); // Simulate API call
+            
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                published: true,
+                platform: 'instagram',
+                postId: `ig_${Math.floor(Math.random() * 1000000)}`,
+                url: mediaUrl,
+                timestamp: new Date().toISOString()
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Instagram photo published`, nodeId);
+          } else {
+            throw new Error(`Unsupported Instagram action: ${igAction}`);
+          }
         } else if (actionType === 'email') {
           const toAddress = interpolate(nodeConfig.toAddress || '', incomingPayload);
           const subject = interpolate(nodeConfig.subject || '', incomingPayload);
@@ -430,6 +460,7 @@ export async function executeWorkflow(
         output: outputData,
         executedAt: new Date().toISOString()
       };
+      if (onNodeComplete) onNodeComplete(nodeResults[node.id]);
 
       // Find outgoing edges
       const outgoingEdges = edges.filter(e => e.source === node.id);
@@ -467,6 +498,7 @@ export async function executeWorkflow(
         error: errorMsg,
         executedAt: new Date().toISOString()
       };
+      if (onNodeComplete) onNodeComplete(nodeResults[node.id]);
       break;
     }
   }

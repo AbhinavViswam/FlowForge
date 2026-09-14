@@ -1,4 +1,5 @@
 import { Worker, Job } from 'bullmq';
+import Redis from 'ioredis';
 import { prisma } from './db';
 import { executeWorkflow } from '@flowforge/workflow-engine';
 
@@ -40,7 +41,33 @@ const worker = new Worker('workflow-execution', async (job: Job) => {
     const startTime = Date.now();
     console.log(`[Worker] Executing engine for execution: ${executionId} (Attempt: ${job.attemptsMade + 1})`);
     
-    const result = await executeWorkflow(definition, payload, previousResults);
+    // Create a local redis client for publishing events
+    const redisPublisher = new Redis(connection);
+    
+    const publishEvent = (type: string, payload: any) => {
+      redisPublisher.publish('workflow-events', JSON.stringify({
+        executionId,
+        workflowId: version.workflowId,
+        type,
+        payload
+      })).catch(() => {}); // ignore publish errors
+    };
+    
+    // Publish a start event
+    publishEvent('execution_started', { startedAt: new Date().toISOString(), attempt: job.attemptsMade + 1 });
+
+    const result = await executeWorkflow(
+      definition, 
+      payload, 
+      previousResults,
+      (log) => publishEvent('log', log),
+      (nodeRes) => publishEvent('node_complete', nodeRes)
+    );
+    
+    publishEvent('execution_finished', { status: result.status, durationMs: Date.now() - startTime });
+
+    redisPublisher.disconnect();
+
     const finishedTime = Date.now();
 
     // 1. Update Execution table

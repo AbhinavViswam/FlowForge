@@ -15,6 +15,7 @@ export default function Dashboard() {
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -27,6 +28,13 @@ export default function Dashboard() {
   } | null>(null);
 
   const [stats, setStats] = useState({ totalExecutions: 0, successRate: 0 });
+
+  const globalHealthState = React.useMemo(() => {
+    if (stats.totalExecutions === 0) return 'healthy';
+    if (stats.successRate < 80) return 'incident';
+    if (stats.successRate < 95) return 'degraded';
+    return 'healthy';
+  }, [stats]);
 
   const fetchWorkflows = async () => {
     if (!user) return;
@@ -56,11 +64,13 @@ export default function Dashboard() {
     try {
       const res = await axios.post(
         'http://localhost:3000/api/v1/workflows', 
-        { name: newWorkflowName }, 
+        { name: newWorkflowName, prompt: aiPrompt.trim() || undefined }, 
         { withCredentials: true }
       );
-      toast.success('Workflow created!');
+      toast.success(aiPrompt.trim() ? 'AI generated workflow!' : 'Workflow created!');
       setIsCreateModalOpen(false);
+      setNewWorkflowName('');
+      setAiPrompt('');
       navigate(`/editor/${res.data.workflow.id}`);
     } catch (err: any) {
       console.error(err);
@@ -139,12 +149,12 @@ export default function Dashboard() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.07] text-[12px] text-slate-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span className="text-slate-300 font-mono text-[11px]">edge-prod-eu-west</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400 text-[11px]">Healthy</span>
-          </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-high border border-surface-container-highest">
+              <span className={`w-1.5 h-1.5 rounded-full ${globalHealthState === 'incident' ? 'bg-rose-500 animate-pulse' : globalHealthState === 'degraded' ? 'bg-amber-500' : 'bg-emerald-400'}`}></span>
+              <span className="text-slate-300 font-mono text-[11px]">edge-prod-eu-west</span>
+              <span className="text-slate-600">•</span>
+              <span className={`text-[11px] font-bold uppercase ${globalHealthState === 'incident' ? 'text-rose-400' : globalHealthState === 'degraded' ? 'text-amber-400' : 'text-slate-400'}`}>{globalHealthState}</span>
+            </div>
           <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#e11d48] hover:bg-[#be123c] text-white text-xs font-medium transition-all shadow-sm">
             <span className="material-symbols-outlined text-[15px]">add</span>
             <span>New Workflow</span>
@@ -451,6 +461,24 @@ export default function Dashboard() {
                   onChange={(e) => setNewWorkflowName(e.target.value)} 
                   className="w-full bg-[#08090b] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-rose-500/50 transition-colors" 
                 />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium flex items-center justify-between">
+                  <span className="text-slate-300">AI Prompt (Optional)</span>
+                  <span className="flex items-center gap-1 text-[10px] text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                    <span className="material-symbols-outlined text-[12px]">auto_awesome</span> Magic
+                  </span>
+                </label>
+                <textarea 
+                  rows={3}
+                  placeholder="Describe what you want to automate..." 
+                  value={aiPrompt} 
+                  onChange={(e) => setAiPrompt(e.target.value)} 
+                  className="w-full bg-[#08090b] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors resize-none placeholder:text-slate-600" 
+                />
+                <p className="text-[10px] text-slate-500">
+                  If provided, FlowForge AI will generate the workflow graph for you. You can edit it before activating.
+                </p>
               </div>
               <div className="flex items-center justify-end gap-3 mt-2 pt-4 border-t border-white/[0.04]">
                 <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/[0.05] text-xs font-medium transition-colors">

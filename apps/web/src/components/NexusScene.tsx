@@ -23,27 +23,18 @@ function NexusNode({ node, position, activeEvent, status }: { node: any, positio
 
   const isExecuting = activeEvent?.nodeId === node.id && activeEvent?.type === 'node_complete';
   const isFailed = status === 'failed';
-  
-  useFrame((state, delta) => {
+
+  useFrame((state) => {
     if (meshRef.current) {
-      // Gentle floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.2;
-      meshRef.current.rotation.x += delta * 0.2;
-      meshRef.current.rotation.y += delta * 0.3;
-      
-      // Pulse scale when executing
       if (isExecuting) {
-        const scale = 1 + Math.sin(state.clock.elapsedTime * 15) * 0.2;
+        meshRef.current.rotation.y += 0.1;
+        meshRef.current.rotation.x += 0.05;
+        const scale = 1 + Math.sin(state.clock.elapsedTime * 15) * 0.1;
         meshRef.current.scale.set(scale, scale, scale);
       } else {
+        meshRef.current.rotation.y += 0.005;
         meshRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
       }
-    }
-    
-    if (materialRef.current) {
-      const targetColor = new THREE.Color(isFailed ? colorByType.failed : (isExecuting ? '#ffffff' : colorByType[node.type as keyof typeof colorByType] || '#94a3b8'));
-      materialRef.current.color.lerp(targetColor, 0.1);
-      materialRef.current.emissive.lerp(targetColor.clone().multiplyScalar(isExecuting ? 0.8 : 0.2), 0.1);
     }
   });
 

@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerSchema, type RegisterInput } from '@flowforge/shared/src/schemas/auth';
 import { Hexagon, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 export default function Signup() {
   const { register: registerUser } = useAuth();
@@ -25,16 +27,16 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col justify-center py-12 sm:px-6 lg:px-8 cyber-grid">
+    <div className="min-h-screen bg-base-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8 ">
+      <div className="absolute top-4 right-4"><ThemeToggle /></div>
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link to="/" className="flex justify-center items-center gap-2 group">
-          <img alt="FlowForge Logo" className="w-10 h-10 rounded object-contain drop-shadow-[0_0_8px_rgba(225,29,72,0.6)] group-hover:scale-105 transition-transform" src="/logo.png" />
-          <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">FlowForge</span>
+          <Logo size="lg" />
         </Link>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-on-surface font-headline-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-base-content font-headline-md">
           Create your account
         </h2>
-        <p className="mt-2 text-center text-sm text-on-surface-variant">
+        <p className="mt-2 text-center text-sm text-base-content/70">
           Already have an account?{' '}
           <Link to="/login" className="font-medium text-primary hover:text-primary-container transition-colors">
             Sign in
@@ -43,7 +45,7 @@ export default function Signup() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-surface-container-low py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-outline-variant/50 relative overflow-hidden">
+        <div className="bg-base-200 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-base-300 relative overflow-hidden">
           
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[100px] bg-primary/10 blur-[80px] pointer-events-none rounded-[100%]" />
 
@@ -57,7 +59,7 @@ export default function Signup() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-on-surface-variant">
+              <label htmlFor="email" className="block text-sm font-medium text-base-content/70">
                 Email address
               </label>
               <div className="mt-1">
@@ -65,14 +67,14 @@ export default function Signup() {
                   id="email"
                   type="email"
                   {...register('email')}
-                  className="appearance-none block w-full px-3 py-2 border border-outline-variant rounded-md shadow-sm bg-surface text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
+                  className="appearance-none block w-full px-3 py-2 border border-base-300 rounded-md shadow-sm bg-base-100 text-base-content placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
                 />
                 {errors.email && <p className="mt-1 text-sm text-error">{errors.email.message}</p>}
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-on-surface-variant">
+              <label htmlFor="password" className="block text-sm font-medium text-base-content/70">
                 Password
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
@@ -80,11 +82,11 @@ export default function Signup() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   {...register('password')}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-outline-variant rounded-md bg-surface text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
+                  className="appearance-none block w-full px-3 py-2 pr-10 border border-base-300 rounded-md bg-base-100 text-base-content placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm transition-colors"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-base-content/70 hover:text-primary transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -97,7 +99,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-on-primary-container bg-primary-container hover:bg-secondary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-content bg-primary text-primary-content hover:bg-secondary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
               >
                 {isSubmitting ? 'Creating account...' : 'Start Building Free'}
                 {!isSubmitting && <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={18} />}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from 'av-toastx';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function Account() {
   const { user, logout, updateProfile, updatePassword } = useAuth();
@@ -55,20 +56,23 @@ export default function Account() {
   };
 
   return (
-    <div className="min-h-screen bg-obsidian text-slate-300 flex flex-col font-sans">
+    <div className="min-h-screen bg-base-100 text-base-content/70 flex flex-col font-sans">
       {/* Header */}
-      <header className="flex justify-between items-center w-full px-6 h-14 border-b border-white/[0.08] bg-surface z-40 shrink-0">
+      <header className="flex justify-between items-center w-full px-6 h-14 border-b border-base-300 bg-base-100 z-40 shrink-0">
         <div className="flex items-center gap-4">
           <Link 
             to="/dashboard" 
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/[0.03] hover:bg-white/[0.06] text-slate-400 hover:text-white transition-all text-xs font-medium border border-white/[0.08]"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/[0.03] hover:bg-white/[0.06] text-base-content/60 hover:text-base-content transition-all text-xs font-medium border border-base-300"
             title="Back to Dashboard"
           >
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>
             <span>Back</span>
           </Link>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+          </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white tracking-wider uppercase">Account Settings</span>
+            <span className="text-sm font-bold text-base-content tracking-wider uppercase">Account Settings</span>
           </div>
         </div>
       </header>
@@ -77,39 +81,39 @@ export default function Account() {
         <div className="w-full max-w-2xl space-y-8">
           
           {/* Profile Details Section */}
-          <section className="p-6 rounded-xl border border-white/[0.08] bg-surface">
-            <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#e11d48]">person</span>
+          <section className="p-6 rounded-xl border border-base-300 bg-base-100">
+            <h2 className="text-lg font-semibold text-base-content mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">person</span>
               Profile Details
             </h2>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Email Address (Read-only)</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Email Address (Read-only)</label>
                   <input 
                     type="email" 
                     value={user?.email || ''} 
                     disabled 
-                    className="w-full bg-white/[0.02] border border-white/[0.06] rounded-md px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
+                    className="w-full bg-white/[0.02] border border-base-300 rounded-md px-3 py-2 text-sm text-base-content/50 cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Full Name</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Full Name</label>
                   <input 
                     type="text" 
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-md px-3 py-2 text-sm text-white focus:border-[#e11d48] focus:outline-none transition-colors"
+                    className="w-full bg-white/[0.04] border border-base-300 rounded-md px-3 py-2 text-sm text-base-content focus:border-[#e11d48] focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Date of Birth</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Date of Birth</label>
                   <input 
                     type="date" 
                     value={dob} 
                     onChange={(e) => setDob(e.target.value)}
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-md px-3 py-2 text-sm text-white focus:border-[#e11d48] focus:outline-none transition-colors"
+                    className="w-full bg-white/[0.04] border border-base-300 rounded-md px-3 py-2 text-sm text-base-content focus:border-[#e11d48] focus:outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -117,7 +121,7 @@ export default function Account() {
                 <button 
                   type="submit" 
                   disabled={isUpdatingProfile}
-                  className="px-4 py-2 rounded-md bg-[#e11d48] hover:bg-[#be123c] text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-md bg-primary hover:bg-primary-focus text-base-content text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUpdatingProfile ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -126,31 +130,31 @@ export default function Account() {
           </section>
 
           {/* Password Section */}
-          <section className="p-6 rounded-xl border border-white/[0.08] bg-surface">
-            <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+          <section className="p-6 rounded-xl border border-base-300 bg-base-100">
+            <h2 className="text-lg font-semibold text-base-content mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-amber-400">lock</span>
               Change Password
             </h2>
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div className="space-y-4 max-w-md">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Current Password</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Current Password</label>
                   <input 
                     type="password" 
                     value={currentPassword} 
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-md px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none transition-colors"
+                    className="w-full bg-white/[0.04] border border-base-300 rounded-md px-3 py-2 text-sm text-base-content focus:border-amber-400 focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">New Password</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">New Password</label>
                   <input 
                     type="password" 
                     value={newPassword} 
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-md px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none transition-colors"
+                    className="w-full bg-white/[0.04] border border-base-300 rounded-md px-3 py-2 text-sm text-base-content focus:border-amber-400 focus:outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -172,21 +176,21 @@ export default function Account() {
               <span className="material-symbols-outlined">warning</span>
               Danger Zone
             </h2>
-            <p className="text-sm text-slate-400 mb-6">Proceeding here will end your current session.</p>
+            <p className="text-sm text-base-content/60 mb-6">Proceeding here will end your current session.</p>
             
             {showSignoutConfirm ? (
               <div className="p-4 rounded-md border border-rose-500/30 bg-rose-500/10 flex flex-col gap-3">
-                <p className="text-sm text-white">Are you sure you want to sign out?</p>
+                <p className="text-sm text-base-content">Are you sure you want to sign out?</p>
                 <div className="flex gap-3">
                   <button 
                     onClick={handleSignout}
-                    className="px-4 py-1.5 rounded bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-1.5 rounded bg-rose-500 hover:bg-rose-600 text-base-content text-sm font-medium transition-colors"
                   >
                     Yes, sign out
                   </button>
                   <button 
                     onClick={() => setShowSignoutConfirm(false)}
-                    className="px-4 py-1.5 rounded border border-white/[0.1] text-slate-300 hover:bg-white/[0.05] text-sm font-medium transition-colors"
+                    className="px-4 py-1.5 rounded border border-base-300 text-base-content/70 hover:bg-white/[0.05] text-sm font-medium transition-colors"
                   >
                     Cancel
                   </button>

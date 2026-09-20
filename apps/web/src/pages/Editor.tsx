@@ -21,8 +21,10 @@ import TriggerNode from '../components/nodes/TriggerNode';
 import LogicNode from '../components/nodes/LogicNode';
 import ActionNode from '../components/nodes/ActionNode';
 import GhostNode from '../components/nodes/GhostNode';
-import NexusScene from '../components/NexusScene';
+import Logo from '../components/Logo';
+import WorkflowScene from '../components/WorkflowScene';
 import { io } from 'socket.io-client';
+import ThemeToggle from '../components/ThemeToggle';
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -686,14 +688,14 @@ export default function Editor() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background text-on-surface select-none">
+    <div className="h-screen flex flex-col bg-base-200 text-base-content select-none">
       
-      <header className="flex justify-between items-center w-full px-space-lg h-14 border-b border-surface-container-highest bg-surface z-40 shrink-0">
+      <header className="flex justify-between items-center w-full px-6 h-14 border-b border-base-300 bg-base-100 z-40 shrink-0">
         
-        <div className="flex items-center gap-space-md">
+        <div className="flex items-center gap-6">
           <Link 
             to="/dashboard" 
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-white transition-all text-xs font-medium border border-surface-container-highest"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-base-200 hover:bg-base-300 text-base-content/70 hover:text-base-content transition-all text-xs font-medium border border-base-300"
             title="Back to Dashboard"
           >
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>
@@ -701,120 +703,80 @@ export default function Editor() {
           </Link>
 
 <div className="flex items-center gap-2">
-<img src="/logo.png" className="w-6 h-6 object-contain" alt="FlowForge" />
-<span className="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-on-surface tracking-wider uppercase">FlowForge</span>
+<Logo />
 </div>
-<div className="h-4 w-[1px] bg-surface-container-highest"></div>
+<div className="h-4 w-[1px] bg-base-300"></div>
 
-<div className="flex items-center gap-space-xs text-body-sm font-body-sm">
-<Link to="/dashboard" className="text-on-surface-variant hover:text-white font-code-snippet text-code-snippet transition-colors">Workflows</Link>
+<div className="flex items-center gap-2 text-body-sm font-body-sm">
+<Link to="/dashboard" className="text-base-content/70 hover:text-base-content font-code-snippet text-code-snippet transition-colors">Workflows</Link>
 <span className="text-surface-container-highest font-code-snippet">/</span>
 <input 
   type="text" 
   value={workflowName} 
   onChange={(e) => setWorkflowName(e.target.value)} 
-  className="bg-transparent border-b border-transparent hover:border-surface-container-highest focus:border-primary-container focus:outline-none text-on-surface font-headline-sm text-sm font-medium tracking-tight px-1 py-0.5 rounded transition-all max-w-[240px] truncate"
+  className="bg-transparent border-b border-transparent hover:border-base-300 focus:border-primary-container focus:outline-none text-base-content font-headline-sm text-sm font-medium tracking-tight px-1 py-0.5 rounded transition-all max-w-[240px] truncate"
   placeholder="Workflow Name"
 />
 </div>
 
-<span className="inline-flex items-center gap-1.5 px-space-xs py-0.5 rounded bg-surface-container-high border border-surface-container-highest text-label-sm font-label-sm text-tertiary">
+<span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-base-300 border border-base-300 text-label-sm font-label-sm text-tertiary">
 <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
         {id === 'new' ? 'Draft' : 'Active'}
       </span>
 </div>
 
-<div className="hidden md:flex items-center bg-surface-container-low border border-surface-container-highest rounded px-1 py-1 gap-1">
-<button className="px-2 py-1 text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors duration-150 flex items-center gap-1">
+<div className="hidden md:flex items-center bg-base-200 border border-base-300 rounded px-1 py-1 gap-1 absolute left-1/2 -translate-x-1/2">
+<button className="px-2 py-1 text-label-sm font-label-sm text-base-content/70 hover:text-base-content hover:bg-base-300 rounded transition-colors duration-150 flex items-center gap-1">
 <span className="material-symbols-outlined text-[14px]" data-icon="zoom_in">zoom_in</span>
         100%
       </button>
-<button className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors duration-150" title="Fit to Screen">
+<button className="p-1 text-base-content/70 hover:text-base-content hover:bg-base-300 rounded transition-colors duration-150" title="Fit to Screen">
 <span className="material-symbols-outlined text-[16px]" data-icon="fit_screen">fit_screen</span>
 </button>
-<div className="h-3 w-[1px] bg-surface-container-highest my-auto"></div>
-<button className="p-1 text-on-surface hover:bg-surface-container-high rounded transition-colors duration-150" title="Minimap Toggle">
+<div className="h-3 w-[1px] bg-base-300 my-auto"></div>
+<button className="p-1 text-base-content hover:bg-base-300 rounded transition-colors duration-150" title="Minimap Toggle">
 <span className="material-symbols-outlined text-[16px]" data-icon="map">map</span>
 </button>
-<button className="p-1 text-primary hover:bg-surface-container-high rounded transition-colors duration-150" title="Grid Active">
+<button className="p-1 text-primary hover:bg-base-300 rounded transition-colors duration-150" title="Grid Active">
 <span className="material-symbols-outlined text-[16px]" data-icon="grid_4x4">grid_4x4</span>
 </button>
 </div>
 
-<div className="flex items-center gap-space-sm">
-  {id && id !== 'new' && (
-    <button 
-      onClick={() => {
-        setIsConsoleOpen(true);
-        setConsoleTab('webhook');
-      }}
-      className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-medium"
-      title="View Webhook Intake URL & cURL command"
-    >
-      <span className="material-symbols-outlined text-[15px]">link</span>
-      <span className="font-code-snippet tracking-wide">Webhook Intake</span>
-    </button>
-  )}
-
-  <button 
-    onClick={() => handleRunTest()} 
-    disabled={isTesting}
-    className="flex items-center gap-1.5 px-space-md py-1.5 rounded border border-surface-container-highest bg-surface-container-low text-on-surface hover:bg-surface-container-high transition-colors duration-150 active:scale-[0.98] disabled:opacity-50"
-    title="Execute pipeline test"
-  >
-    {isTesting ? (
-      <span className="w-3.5 h-3.5 border-2 border-tertiary border-t-transparent rounded-full animate-spin"></span>
-    ) : (
-      <span className="material-symbols-outlined text-[15px] text-tertiary" data-icon="terminal">terminal</span>
-    )}
-    <span className="text-label-sm font-label-sm uppercase tracking-wider">
-      {isTesting ? 'Running...' : 'Run Test'}
-    </span>
-  </button>
-
-  <button 
-    onClick={() => {
-      setIsConsoleOpen(prev => !prev);
-      setConsoleTab('history');
-    }}
-    className={`p-1.5 rounded transition-colors duration-150 ${isConsoleOpen && consoleTab === 'history' ? 'bg-surface-container-high text-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}`} 
-    title="Execution History"
-  >
-    <span className="material-symbols-outlined text-[18px]" data-icon="history">history</span>
-  </button>
-
+<div className="flex items-center gap-4">
   <button 
     onClick={() => setIsConsoleOpen(prev => !prev)}
-    className={`p-1.5 rounded transition-colors duration-150 ${isConsoleOpen ? 'bg-surface-container-high text-tertiary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}`} 
-    title="Toggle Execution Console"
+    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors duration-150 font-medium text-xs ${isConsoleOpen ? 'bg-primary text-primary-content border-primary' : 'bg-base-200 border-base-300 text-base-content hover:bg-base-300'}`} 
+    title="Open Developer Console"
   >
-    <span className="material-symbols-outlined text-[18px]">terminal</span>
+    <span className="material-symbols-outlined text-[16px]">terminal</span>
+    <span>Console</span>
   </button>
 
   <div className="flex items-center gap-3 pr-3 pl-1">
+      <ThemeToggle />
       <button 
         onClick={() => onSave()} 
         disabled={isDeploying}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-container-high border border-surface-container-highest hover:bg-surface-container text-on-surface transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-base-300 border border-base-300 hover:bg-base-200 text-base-content transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
       >
         <span className="material-symbols-outlined text-[16px]">save</span>
         <span className="text-xs font-semibold">Save</span>
       </button>
       <div className="flex items-center gap-2" title={isActive ? 'Disable Workflow' : 'Enable Workflow'}>
-        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-emerald-400' : 'text-slate-500'}`}>
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-emerald-400' : 'text-base-content/50'}`}>
           {isActive ? 'Active' : 'Disabled'}
         </span>
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" className="sr-only peer" checked={isActive} onChange={onToggleActive} disabled={isDeploying} />
-          <div className="w-8 h-4 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+          <div className="w-8 h-4 bg-base-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
         </label>
       </div>
     </div>
-<div className="h-4 w-[1px] bg-surface-container-highest"></div>
+<div className="h-4 w-[1px] bg-base-300"></div>
 
 <div 
   onClick={() => navigate('/account')}
-  className="w-7 h-7 rounded bg-surface-container-high border border-surface-container-highest flex items-center justify-center text-label-sm font-label-sm text-primary font-bold cursor-pointer hover:border-primary/50 transition-colors"
+  className="w-7 h-7 rounded bg-base-300 border border-base-300 flex items-center justify-center text-label-sm font-label-sm text-primary font-bold cursor-pointer hover:border-primary/50 transition-colors"
   title="Account Settings"
 >
         {firstLetter}
@@ -824,24 +786,24 @@ export default function Editor() {
 
 <div className="flex-1 flex overflow-hidden relative">
 
-<aside className="w-60 flex flex-col justify-between border-r border-surface-container-highest dark:border-surface-container-highest bg-surface-container-low dark:bg-surface-container-low z-30 shrink-0">
+<aside className="w-60 flex flex-col justify-between border-r border-base-300 dark:border-base-300 bg-base-200 dark:bg-base-200 z-30 shrink-0">
 <div className="flex flex-col h-full overflow-y-auto">
 
-<div className="p-space-sm border-b border-surface-container-highest flex flex-col gap-space-xs">
+<div className="p-4 border-b border-base-300 flex flex-col gap-2">
 <div className="flex items-center justify-between">
-<span className="text-headline-sm font-headline-sm font-bold text-on-surface text-xs tracking-wider uppercase">Palette</span>
-<span className="text-label-sm font-label-sm text-on-surface-variant text-[10px]">v2.4.0 Engine</span>
+<span className="text-headline-sm font-headline-sm font-bold text-base-content text-xs tracking-wider uppercase">Palette</span>
+<span className="text-label-sm font-label-sm text-base-content/70 text-[10px]">v2.4.0 Engine</span>
 </div>
 <div className="relative mt-1">
-<span className="material-symbols-outlined absolute left-2 top-2 text-[14px] text-on-surface-variant" data-icon="search">search</span>
-<input className="w-full bg-surface-container-lowest border border-surface-container-highest rounded pl-7 pr-2 py-1 text-label-sm font-label-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-container" placeholder="Search nodes..." type="text"/>
+<span className="material-symbols-outlined absolute left-2 top-2 text-[14px] text-base-content/70" data-icon="search">search</span>
+<input className="w-full bg-base-100 border border-base-300 rounded pl-7 pr-2 py-1 text-label-sm font-label-sm text-base-content placeholder:text-base-content/70/50 focus:outline-none focus:border-primary-container" placeholder="Search nodes..." type="text"/>
 </div>
 </div>
 
-<div className="p-space-sm flex flex-col gap-space-md">
+<div className="p-4 flex flex-col gap-6">
 
 <div>
-<div className="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-space-xs uppercase tracking-wider text-[10px]">
+<div className="flex items-center justify-between text-label-sm font-label-sm text-base-content/70 mb-2 uppercase tracking-wider text-[10px]">
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-[12px] text-primary" data-icon="bolt">bolt</span>
                 Triggers
@@ -849,32 +811,32 @@ export default function Editor() {
 <span>3</span>
 </div>
 <div className="flex flex-col gap-1">
-<div onClick={() => addNode('trigger', 'Webhook Intake', 'POST /v1/events/webhook', 'bolt', 'primary', { triggerType: 'webhook' })} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('trigger', 'Webhook Intake', 'POST /v1/events/webhook', 'bolt', 'primary', { triggerType: 'webhook' })} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-primary"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Webhook Intake</span>
+<span className="text-body-sm font-body-sm text-base-content">Webhook Intake</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('trigger', 'Schedule / Cron', 'Cron: 0 * * * *', 'schedule', 'primary', { triggerType: 'cron' })} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('trigger', 'Schedule / Cron', 'Cron: 0 * * * *', 'schedule', 'primary', { triggerType: 'cron' })} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-primary/40"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Schedule / Cron</span>
+<span className="text-body-sm font-body-sm text-base-content">Schedule / Cron</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('trigger', 'Redis Stream', 'Stream: events.raw', 'stream', 'primary', { triggerType: 'redis' })} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('trigger', 'Redis Stream', 'Stream: events.raw', 'stream', 'primary', { triggerType: 'redis' })} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-primary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-primary/40"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Kafka / Redis Stream</span>
+<span className="text-body-sm font-body-sm text-base-content">Kafka / Redis Stream</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
 </div>
 </div>
 
 <div>
-<div className="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-space-xs uppercase tracking-wider text-[10px]">
+<div className="flex items-center justify-between text-label-sm font-label-sm text-base-content/70 mb-2 uppercase tracking-wider text-[10px]">
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-[12px] text-tertiary" data-icon="schema">schema</span>
                 Logic &amp; Flow
@@ -882,32 +844,32 @@ export default function Editor() {
 <span>3</span>
 </div>
 <div className="flex flex-col gap-1">
-<div onClick={() => addNode('logic', 'Condition Branch', 'IF: payload.amount > 100')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('logic', 'Condition Branch', 'IF: payload.amount > 100')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Condition Branch</span>
+<span className="text-body-sm font-body-sm text-base-content">Condition Branch</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('logic', 'Merge / Fork', 'Fan-out logic')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('logic', 'Merge / Fork', 'Fan-out logic')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-tertiary/40"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Merge / Fork</span>
+<span className="text-body-sm font-body-sm text-base-content">Merge / Fork</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('logic', 'Rate Limiter', '100 req / min')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('logic', 'Rate Limiter', '100 req / min')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-tertiary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-tertiary/40"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Rate Limiter</span>
+<span className="text-body-sm font-body-sm text-base-content">Rate Limiter</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
 </div>
 </div>
 
 <div>
-<div className="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-space-xs uppercase tracking-wider text-[10px]">
+<div className="flex items-center justify-between text-label-sm font-label-sm text-base-content/70 mb-2 uppercase tracking-wider text-[10px]">
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-[12px] text-secondary" data-icon="hub">hub</span>
                 Actions &amp; Sinks
@@ -915,48 +877,48 @@ export default function Editor() {
 <span>4</span>
 </div>
 <div className="flex flex-col gap-1">
-<div onClick={() => addNode('action', 'HTTP Request', 'POST https://api.endpoint', 'http', 'tertiary')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('action', 'HTTP Request', 'POST https://api.endpoint', 'http', 'tertiary')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-secondary"></span>
-<span className="text-body-sm font-body-sm text-on-surface">HTTP Request</span>
+<span className="text-body-sm font-body-sm text-base-content">HTTP Request</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('action', 'Postgres Sink', 'Database Write', 'storage', 'secondary')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('action', 'Postgres Sink', 'Database Write', 'storage', 'secondary')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-secondary"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Postgres Sink</span>
+<span className="text-body-sm font-body-sm text-base-content">Postgres Sink</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('action', 'Resend Email', 'Send notification', 'mail', 'primary')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('action', 'Resend Email', 'Send notification', 'mail', 'primary')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-secondary/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-secondary/40"></span>
-<span className="text-body-sm font-body-sm text-on-surface">Resend Email</span>
+<span className="text-body-sm font-body-sm text-base-content">Resend Email</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
-<div onClick={() => addNode('action', 'AI Transformation', 'Prompt: Summarize', 'auto_awesome', 'primary-container')} className="flex items-center justify-between p-space-xs rounded bg-surface-container border border-surface-container-highest hover:border-primary-container/50 cursor-pointer active:scale-95 transition-all">
+<div onClick={() => addNode('action', 'AI Transformation', 'Prompt: Summarize', 'auto_awesome', 'primary-container')} className="flex items-center justify-between p-2 rounded bg-base-200 border border-base-300 hover:border-primary-container/50 cursor-pointer active:scale-95 transition-all">
 <div className="flex items-center gap-1.5">
-<span className="w-2 h-2 rounded-full bg-primary-container"></span>
-<span className="text-body-sm font-body-sm text-on-surface">AI Transformation</span>
+<span className="w-2 h-2 rounded-full bg-primary text-primary-content"></span>
+<span className="text-body-sm font-body-sm text-base-content">AI Transformation</span>
 </div>
-<span className="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="add">add</span>
+<span className="material-symbols-outlined text-[14px] text-base-content/70" data-icon="add">add</span>
 </div>
 </div>
 </div>
 </div>
 </div>
 
-<div className="p-space-sm border-t border-surface-container-highest bg-surface-container-lowest flex items-center justify-between">
-<button onClick={() => addNode('action', 'New Action', 'Generic step', 'hub', 'primary-container')} className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-on-surface text-label-sm font-label-sm transition-colors active:scale-95">
+<div className="p-4 border-t border-base-300 bg-base-100 flex items-center justify-between">
+<button onClick={() => addNode('action', 'New Action', 'Generic step', 'hub', 'primary-container')} className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-base-200 border border-base-300 hover:bg-base-300 text-base-content text-label-sm font-label-sm transition-colors active:scale-95">
 <span className="material-symbols-outlined text-[14px] text-primary" data-icon="add">add</span>
           Add Custom Node
         </button>
 </div>
 </aside>
 
-<main className="flex-1 relative bg-surface-container-lowest overflow-hidden flex flex-col">
+<main className="flex-1 relative bg-base-100 overflow-hidden flex flex-col">
   <div className="flex-1 relative w-full h-full">
     <ReactFlow
       nodes={nodes}
@@ -969,23 +931,23 @@ export default function Editor() {
       onPaneClick={onPaneClick}
       fitView
     >
-      <Background color="#ffffff" gap={24} size={1} />
-      <Controls className="bg-surface border-surface-container-highest fill-on-surface" />
-      <MiniMap className="bg-surface border-surface-container-highest" maskColor="rgba(0, 0, 0, 0.5)" />
+      <Background color="#9ca3af" gap={32} size={1} />
+      <Controls className="bg-base-100 border-base-300 fill-on-surface" />
+      <MiniMap className="bg-base-100 border-base-300" maskColor="rgba(0, 0, 0, 0.5)" />
     </ReactFlow>
   </div>
 
   {/* Execution Console & Telemetry Drawer */}
   {!isConsoleOpen ? (
-    <div className="h-9 border-t border-surface-container-highest bg-[#121316] px-4 flex items-center justify-between z-20 shrink-0 select-none">
+    <div className="h-9 border-t border-base-300 bg-base-100 px-4 flex items-center justify-between z-20 shrink-0 select-none">
       <div className="flex items-center gap-3">
         <button 
           onClick={() => setIsConsoleOpen(true)}
-          className="flex items-center gap-1.5 text-xs text-on-surface font-medium hover:text-primary transition-colors"
+          className="flex items-center gap-1.5 text-xs text-base-content font-medium hover:text-primary transition-colors"
         >
           <span className="material-symbols-outlined text-[15px] text-tertiary">terminal</span>
           <span className="font-semibold tracking-wide">Execution Console &amp; Webhook Intake</span>
-          <span className="material-symbols-outlined text-[15px] text-on-surface-variant">keyboard_arrow_up</span>
+          <span className="material-symbols-outlined text-[15px] text-base-content/70">keyboard_arrow_up</span>
         </button>
         
         {testResult && (
@@ -995,7 +957,7 @@ export default function Editor() {
               <span className={`w-1.5 h-1.5 rounded-full ${testResult.success ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
               {testResult.success ? '200 OK' : 'FAILED'}
             </span>
-            <span className="text-on-surface-variant text-[11px]">{testResult.totalDurationMs}ms</span>
+            <span className="text-base-content/70 text-[11px]">{testResult.totalDurationMs}ms</span>
           </div>
         )}
       </div>
@@ -1003,7 +965,7 @@ export default function Editor() {
       <div className="flex items-center gap-2">
         <button 
           onClick={() => { setIsConsoleOpen(true); setConsoleTab('webhook'); }}
-          className="text-xs text-on-surface-variant hover:text-white flex items-center gap-1 transition-colors px-2 py-0.5 rounded hover:bg-surface-container-high"
+          className="text-xs text-base-content/70 hover:text-base-content flex items-center gap-1 transition-colors px-2 py-0.5 rounded hover:bg-base-300"
         >
           <span className="material-symbols-outlined text-[13px] text-primary">link</span>
           <span className="font-code-snippet">Webhook URL</span>
@@ -1011,7 +973,7 @@ export default function Editor() {
         <button 
           onClick={() => handleRunTest()}
           disabled={isTesting}
-          className="px-2.5 py-1 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-xs text-tertiary font-semibold flex items-center gap-1 active:scale-95 transition-all"
+          className="px-2.5 py-1 rounded bg-base-200 border border-base-300 hover:bg-base-300 text-xs text-tertiary font-semibold flex items-center gap-1 active:scale-95 transition-all"
         >
           <span className="material-symbols-outlined text-[13px]">play_arrow</span>
           <span>{isTesting ? 'Running...' : 'Run Test'}</span>
@@ -1019,13 +981,13 @@ export default function Editor() {
       </div>
     </div>
   ) : (
-    <div className="h-80 border-t border-surface-container-highest bg-[#121316] flex flex-col z-20 shrink-0 shadow-2xl">
+    <div className="h-80 border-t border-base-300 bg-base-100 flex flex-col z-20 shrink-0 shadow-2xl">
       {/* Console Header Tabs */}
-      <div className="h-10 border-b border-surface-container-highest bg-[#18191d] px-3 flex items-center justify-between select-none">
+      <div className="h-10 border-b border-base-300 bg-base-200 px-3 flex items-center justify-between select-none">
         <div className="flex items-center gap-1 h-full">
           <button 
             onClick={() => setConsoleTab('test')}
-            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'test' ? 'border-tertiary text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'test' ? 'border-tertiary text-base-content bg-base-200/60' : 'border-transparent text-base-content/70 hover:text-base-content'}`}
           >
             <span className="material-symbols-outlined text-[14px] text-tertiary">terminal</span>
             <span>Live Test Console</span>
@@ -1033,7 +995,7 @@ export default function Editor() {
           
           <button 
             onClick={() => setConsoleTab('webhook')}
-            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'webhook' ? 'border-primary text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'webhook' ? 'border-primary text-base-content bg-base-200/60' : 'border-transparent text-base-content/70 hover:text-base-content'}`}
           >
             <span className="material-symbols-outlined text-[14px] text-primary">link</span>
             <span>Webhook Intake &amp; cURL</span>
@@ -1042,7 +1004,7 @@ export default function Editor() {
 
           <button 
             onClick={() => setConsoleTab('trace')}
-            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'trace' ? 'border-secondary text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'trace' ? 'border-secondary text-base-content bg-base-200/60' : 'border-transparent text-base-content/70 hover:text-base-content'}`}
           >
             <span className="material-symbols-outlined text-[14px] text-secondary">schema</span>
             <span>Step Trace {testResult?.nodeResults ? `(${Object.keys(testResult.nodeResults).length})` : ''}</span>
@@ -1050,7 +1012,7 @@ export default function Editor() {
 
           <button 
             onClick={() => { setConsoleTab('history'); fetchExecutions(); }}
-            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'history' ? 'border-primary-container text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'history' ? 'border-primary-container text-base-content bg-base-200/60' : 'border-transparent text-base-content/70 hover:text-base-content'}`}
           >
             <span className="material-symbols-outlined text-[14px] text-primary-container">history</span>
             <span>Run History ({executionsList.length})</span>
@@ -1058,7 +1020,7 @@ export default function Editor() {
 
           <button 
             onClick={() => setConsoleTab('nexus')}
-            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'nexus' ? 'border-indigo-400 text-white bg-surface-container-low/60' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+            className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-all ${consoleTab === 'nexus' ? 'border-indigo-400 text-base-content bg-base-200/60' : 'border-transparent text-base-content/70 hover:text-base-content'}`}
           >
             <span className="material-symbols-outlined text-[14px] text-indigo-400">view_in_ar</span>
             <span>Nexus 3D Viewer</span>
@@ -1071,10 +1033,10 @@ export default function Editor() {
         <div className="flex items-center gap-2">
           {consoleTab === 'test' && (
             <>
-              <div className="hidden sm:flex items-center gap-1 text-[11px] font-code-snippet text-on-surface-variant mr-1">
+              <div className="hidden sm:flex items-center gap-1 text-[11px] font-code-snippet text-base-content/70 mr-1">
                 <span>Preset:</span>
-                <button onClick={() => loadPayloadPreset('enterprise')} className="px-1.5 py-0.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface hover:text-white transition-colors">Enterprise</button>
-                <button onClick={() => loadPayloadPreset('standard')} className="px-1.5 py-0.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface hover:text-white transition-colors">Standard (Filter)</button>
+                <button onClick={() => loadPayloadPreset('enterprise')} className="px-1.5 py-0.5 rounded bg-base-200 hover:bg-base-300 text-base-content hover:text-base-content transition-colors">Enterprise</button>
+                <button onClick={() => loadPayloadPreset('standard')} className="px-1.5 py-0.5 rounded bg-base-200 hover:bg-base-300 text-base-content hover:text-base-content transition-colors">Standard (Filter)</button>
               </div>
 
               <button 
@@ -1096,7 +1058,7 @@ export default function Editor() {
             <button 
               onClick={fetchExecutions}
               disabled={isLoadingExecutions}
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-xs text-on-surface-variant hover:text-white transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-base-200 border border-base-300 hover:bg-base-300 text-xs text-base-content/70 hover:text-base-content transition-colors"
               title="Refresh executions from database"
             >
               <span className={`material-symbols-outlined text-[14px] ${isLoadingExecutions ? 'animate-spin' : ''}`}>refresh</span>
@@ -1106,7 +1068,7 @@ export default function Editor() {
 
           <button 
             onClick={() => setIsConsoleOpen(false)}
-            className="p-1 rounded text-on-surface-variant hover:text-white hover:bg-surface-container-high transition-colors"
+            className="p-1 rounded text-base-content/70 hover:text-base-content hover:bg-base-300 transition-colors"
             title="Minimize Console"
           >
             <span className="material-symbols-outlined text-[16px]">keyboard_arrow_down</span>
@@ -1119,9 +1081,9 @@ export default function Editor() {
         {consoleTab === 'test' && (
           <div className="grid grid-cols-12 h-full">
             {/* Left: Editable Payload */}
-            <div className="col-span-5 border-r border-surface-container-highest p-3 flex flex-col gap-1.5 h-full bg-[#0f1013]">
+            <div className="col-span-5 border-r border-base-300 p-3 flex flex-col gap-1.5 h-full bg-base-100">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-on-surface flex items-center gap-1">
+                <span className="font-medium text-base-content flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px] text-tertiary">data_object</span>
                   <span>Input Event Payload (JSON)</span>
                 </span>
@@ -1135,23 +1097,23 @@ export default function Editor() {
               <textarea 
                 value={testPayloadText}
                 onChange={(e) => setTestPayloadText(e.target.value)}
-                className="flex-1 w-full bg-[#08090b] border border-surface-container-highest rounded p-2 text-code-snippet font-code-snippet text-[11px] text-emerald-300 focus:outline-none focus:border-tertiary resize-none overflow-y-auto leading-relaxed"
+                className="flex-1 w-full bg-base-200 border border-base-300 rounded p-2 text-code-snippet font-code-snippet text-[11px] text-emerald-300 focus:outline-none focus:border-tertiary resize-none overflow-y-auto leading-relaxed"
                 spellCheck={false}
               />
             </div>
 
             {/* Right: Telemetry & Logs */}
-            <div className="col-span-7 p-3 flex flex-col gap-2 h-full bg-[#0c0d10] overflow-hidden">
+            <div className="col-span-7 p-3 flex flex-col gap-2 h-full bg-base-200 overflow-hidden">
               {testResult ? (
                 <>
-                  <div className="flex items-center justify-between pb-2 border-b border-surface-container-highest">
+                  <div className="flex items-center justify-between pb-2 border-b border-base-300">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${testResult.success ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${testResult.success ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                         {testResult.success ? 'PIPELINE PASSED (200 OK)' : 'PIPELINE FAILED'}
                       </span>
-                      <span className="text-xs font-code-snippet text-on-surface-variant">
-                        Execution: <span className="text-on-surface">{testResult.executionId}</span>
+                      <span className="text-xs font-code-snippet text-base-content/70">
+                        Execution: <span className="text-base-content">{testResult.executionId}</span>
                       </span>
                     </div>
 
@@ -1160,25 +1122,25 @@ export default function Editor() {
                         <span className="material-symbols-outlined text-[13px]">bolt</span>
                         {testResult.totalDurationMs}ms total
                       </span>
-                      <span className="text-on-surface-variant">
+                      <span className="text-base-content/70">
                         {Object.values(testResult.nodeResults || {}).filter((n: any) => n.status === 'completed').length} nodes active
                       </span>
                     </div>
                   </div>
 
                   {/* Logs terminal */}
-                  <div className="flex-1 bg-[#060709] border border-surface-container-highest rounded p-2.5 overflow-y-auto font-code-snippet text-[11px] flex flex-col gap-1">
+                  <div className="flex-1 bg-base-300 border border-base-300 rounded p-2.5 overflow-y-auto font-code-snippet text-[11px] flex flex-col gap-1">
                     {testResult.logs?.map((log: any, idx: number) => {
                       const isSuccess = log.level === 'success';
                       const isError = log.level === 'error';
                       const isWarn = log.level === 'warn';
                       return (
                         <div key={idx} className="flex items-start gap-2 leading-relaxed">
-                          <span className="text-on-surface-variant text-[10px] shrink-0">{log.timestamp}</span>
-                          <span className={`px-1 rounded text-[9px] font-bold shrink-0 uppercase ${isSuccess ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : isError ? 'bg-rose-500/20 text-rose-400' : isWarn ? 'bg-amber-500/15 text-amber-400' : 'bg-surface-container text-on-surface-variant'}`}>
+                          <span className="text-base-content/70 text-[10px] shrink-0">{log.timestamp}</span>
+                          <span className={`px-1 rounded text-[9px] font-bold shrink-0 uppercase ${isSuccess ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : isError ? 'bg-rose-500/20 text-rose-400' : isWarn ? 'bg-amber-500/15 text-amber-400' : 'bg-base-200 text-base-content/70'}`}>
                             {log.level}
                           </span>
-                          <span className={`break-all ${isSuccess ? 'text-emerald-300' : isError ? 'text-rose-400' : isWarn ? 'text-amber-300' : 'text-on-surface'}`}>
+                          <span className={`break-all ${isSuccess ? 'text-emerald-300' : isError ? 'text-rose-400' : isWarn ? 'text-amber-300' : 'text-base-content'}`}>
                             {log.message}
                           </span>
                         </div>
@@ -1187,9 +1149,9 @@ export default function Editor() {
                   </div>
                 </>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-on-surface-variant">
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-base-content/70">
                   <span className="material-symbols-outlined text-[32px] text-tertiary mb-2 opacity-60">terminal</span>
-                  <p className="text-xs font-medium text-on-surface mb-1">Pipeline Engine Ready</p>
+                  <p className="text-xs font-medium text-base-content mb-1">Pipeline Engine Ready</p>
                   <p className="text-[11px] max-w-sm">
                     Click <strong className="text-tertiary">"Execute Test"</strong> above to send the test payload through your workflow nodes and observe live evaluation traces.
                   </p>
@@ -1200,14 +1162,14 @@ export default function Editor() {
         )}
 
         {consoleTab === 'webhook' && (
-          <div className="h-full p-4 overflow-y-auto flex flex-col gap-4 bg-[#0e0f12]">
+          <div className="h-full p-4 overflow-y-auto flex flex-col gap-4 bg-base-300">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                <h4 className="text-xs font-bold text-base-content uppercase tracking-wider flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[15px] text-primary">sensors</span>
                   How To Check If Your Workflow Is Working
                 </h4>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">
+                <p className="text-[11px] text-base-content/70 mt-0.5">
                   Every active FlowForge workflow has a dedicated public ingestion endpoint. You can test your workflow with real HTTP traffic from terminals, Postman, or webhook providers (Stripe, GitHub, Shopify).
                 </p>
               </div>
@@ -1222,34 +1184,34 @@ export default function Editor() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Card 1: Webhook URL */}
-              <div className="p-3 rounded bg-[#07080a] border border-surface-container-highest flex flex-col gap-2">
+              <div className="p-3 rounded bg-base-200 border border-base-300 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">1. Dedicated Webhook URL</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-base-content/70">1. Dedicated Webhook URL</span>
                   <span className="text-[10px] text-emerald-400 font-code-snippet">POST Endpoint</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-[#121316] border border-surface-container-highest rounded px-2.5 py-1.5">
-                  <span className="text-code-snippet font-code-snippet text-[11px] text-on-surface select-all truncate flex-1">
+                <div className="flex items-center gap-1.5 bg-base-100 border border-base-300 rounded px-2.5 py-1.5">
+                  <span className="text-code-snippet font-code-snippet text-[11px] text-base-content select-all truncate flex-1">
                     {id && id !== 'new' ? `http://localhost:3000/api/v1/wh/${id}` : 'Deploy workflow first to obtain URL'}
                   </span>
                   {id && id !== 'new' && (
                     <button 
                       onClick={() => copyToClipboard(`http://localhost:3000/api/v1/wh/${id}`, 'Webhook URL')}
-                      className="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-white transition-colors"
+                      className="p-1 rounded hover:bg-base-200 text-base-content/70 hover:text-base-content transition-colors"
                       title="Copy URL"
                     >
                       <span className="material-symbols-outlined text-[14px]">content_copy</span>
                     </button>
                   )}
                 </div>
-                <span className="text-[10px] text-on-surface-variant">
+                <span className="text-[10px] text-base-content/70">
                   Accepts JSON payloads. Automatically triggers execution, evaluates logic conditions, and runs actions.
                 </span>
               </div>
 
               {/* Card 2: cURL Command */}
-              <div className="p-3 rounded bg-[#07080a] border border-surface-container-highest flex flex-col gap-2">
+              <div className="p-3 rounded bg-base-200 border border-base-300 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">2. Terminal cURL Command</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-base-content/70">2. Terminal cURL Command</span>
                   {id && id !== 'new' && (
                     <button 
                       onClick={() => copyToClipboard(`curl -X POST http://localhost:3000/api/v1/wh/${id} -H "Content-Type: application/json" -d '{"event":"order.created","account_tier":"enterprise","amount":250}'`, 'cURL command')}
@@ -1260,7 +1222,7 @@ export default function Editor() {
                     </button>
                   )}
                 </div>
-                <pre className="bg-[#121316] border border-surface-container-highest rounded p-2 text-code-snippet font-code-snippet text-[10px] text-primary-container overflow-x-auto whitespace-pre">
+                <pre className="bg-base-100 border border-base-300 rounded p-2 text-code-snippet font-code-snippet text-[10px] text-primary-container overflow-x-auto whitespace-pre">
 {`curl -X POST http://localhost:3000/api/v1/wh/${id || ':id'} \\
   -H "Content-Type: application/json" \\
   -d '{"event":"order.created","account_tier":"enterprise","amount":250}'`}
@@ -1269,16 +1231,16 @@ export default function Editor() {
             </div>
 
             {/* Ingestion Verification Notice */}
-            <div className="p-3 rounded bg-surface-container-low border border-surface-container-highest flex items-center justify-between">
+            <div className="p-3 rounded bg-base-200 border border-base-300 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px] text-emerald-400">verified</span>
-                <span className="text-[11px] text-on-surface">
+                <span className="text-[11px] text-base-content">
                   Once you trigger the endpoint, incoming events are persisted in PostgreSQL. Switch to the <strong>Run History</strong> tab to inspect live intake events.
                 </span>
               </div>
               <button 
                 onClick={() => { setConsoleTab('history'); fetchExecutions(); }}
-                className="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs font-semibold text-on-surface border border-surface-container-highest transition-colors flex items-center gap-1"
+                className="px-2.5 py-1 rounded bg-base-200 hover:bg-base-300 text-xs font-semibold text-base-content border border-base-300 transition-colors flex items-center gap-1"
               >
                 <span>View History</span>
                 <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -1288,25 +1250,25 @@ export default function Editor() {
         )}
 
         {consoleTab === 'trace' && (
-          <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#0c0d10]">
+          <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-base-200">
             {testResult?.nodeResults && Object.keys(testResult.nodeResults).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {Object.values(testResult.nodeResults).map((nr: any) => (
-                  <div key={nr.nodeId} className="p-2.5 rounded bg-[#131417] border border-surface-container-highest flex flex-col gap-1.5 text-xs">
-                    <div className="flex items-center justify-between border-b border-surface-container-highest pb-1.5">
-                      <span className="font-semibold text-on-surface truncate">{nr.nodeName}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${nr.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' : nr.status === 'skipped' ? 'bg-surface-container text-on-surface-variant' : 'bg-rose-500/15 text-rose-400'}`}>
+                  <div key={nr.nodeId} className="p-2.5 rounded bg-base-200 border border-base-300 flex flex-col gap-1.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-base-300 pb-1.5">
+                      <span className="font-semibold text-base-content truncate">{nr.nodeName}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${nr.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' : nr.status === 'skipped' ? 'bg-base-200 text-base-content/70' : 'bg-rose-500/15 text-rose-400'}`}>
                         {nr.status.toUpperCase()} ({nr.durationMs}ms)
                       </span>
                     </div>
 
-                    <div className="text-[10px] font-code-snippet text-on-surface-variant">
-                      Type: <span className="text-on-surface">{nr.nodeType}</span>
+                    <div className="text-[10px] font-code-snippet text-base-content/70">
+                      Type: <span className="text-base-content">{nr.nodeType}</span>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-bold uppercase text-on-surface-variant">Output Snapshot</span>
-                      <pre className="bg-[#08090b] border border-surface-container-highest rounded p-1.5 text-[10px] font-code-snippet text-emerald-300 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                      <span className="text-[9px] font-bold uppercase text-base-content/70">Output Snapshot</span>
+                      <pre className="bg-base-200 border border-base-300 rounded p-1.5 text-[10px] font-code-snippet text-emerald-300 max-h-24 overflow-y-auto whitespace-pre-wrap">
                         {JSON.stringify(nr.output || {}, null, 2)}
                       </pre>
                     </div>
@@ -1314,7 +1276,7 @@ export default function Editor() {
                 ))}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-on-surface-variant">
+              <div className="h-full flex items-center justify-center text-xs text-base-content/70">
                 No step trace available. Execute a test run first.
               </div>
             )}
@@ -1322,9 +1284,9 @@ export default function Editor() {
         )}
 
         {consoleTab === 'history' && (
-          <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#0c0d10]">
-            <div className="flex items-center justify-between text-xs pb-1 border-b border-surface-container-highest">
-              <span className="font-medium text-on-surface">Stored PostgreSQL Executions ({executionsList.length})</span>
+          <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-base-200">
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-base-300">
+              <span className="font-medium text-base-content">Stored PostgreSQL Executions ({executionsList.length})</span>
               <button onClick={fetchExecutions} className="text-[11px] text-primary hover:underline flex items-center gap-1">
                 <span className="material-symbols-outlined text-[13px]">refresh</span>
                 Refresh
@@ -1334,7 +1296,7 @@ export default function Editor() {
             {executionsList.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 {executionsList.map((exec) => (
-                  <div key={exec.id} className="flex flex-col gap-2 p-2.5 rounded bg-[#131417] border border-surface-container-highest text-xs hover:border-primary/40 transition-colors">
+                  <div key={exec.id} className="flex flex-col gap-2 p-2.5 rounded bg-base-200 border border-base-300 text-xs hover:border-primary/40 transition-colors">
                     <div 
                       className="flex items-center justify-between cursor-pointer"
                       onClick={() => setExpandedExecutionId(prev => prev === exec.id ? null : exec.id)}
@@ -1342,8 +1304,8 @@ export default function Editor() {
                       <div className="flex items-center gap-3">
                         <span className={`w-2 h-2 rounded-full ${exec.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                         <div className="flex flex-col">
-                          <span className="font-code-snippet font-semibold text-on-surface text-[11px]">{exec.id}</span>
-                          <span className="text-[10px] text-on-surface-variant font-code-snippet">
+                          <span className="font-code-snippet font-semibold text-base-content text-[11px]">{exec.id}</span>
+                          <span className="text-[10px] text-base-content/70 font-code-snippet">
                             {new Date(exec.startedAt).toLocaleString()} • Event: {exec.event?.externalEventId || exec.event?.id || 'manual'}
                           </span>
                         </div>
@@ -1353,10 +1315,10 @@ export default function Editor() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${exec.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
                           {exec.status.toUpperCase()}
                         </span>
-                        <span className="text-on-surface-variant text-[11px] font-code-snippet">
+                        <span className="text-base-content/70 text-[11px] font-code-snippet">
                           {exec.nodeExecutions?.length || 0} nodes
                         </span>
-                        <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-2">
+                        <span className="material-symbols-outlined text-[16px] text-base-content/70 ml-2">
                           {expandedExecutionId === exec.id ? 'expand_less' : 'expand_more'}
                         </span>
                       </div>
@@ -1364,25 +1326,25 @@ export default function Editor() {
 
                     {/* Expanded Details */}
                     {expandedExecutionId === exec.id && exec.nodeExecutions && (
-                      <div className="mt-2 pt-2 border-t border-surface-container-highest flex flex-col gap-3">
+                      <div className="mt-2 pt-2 border-t border-base-300 flex flex-col gap-3">
                         {exec.nodeExecutions.map((nExec: any) => (
-                          <div key={nExec.id} className="flex flex-col gap-1 p-2 bg-[#0c0d10] rounded border border-surface-container-highest">
+                          <div key={nExec.id} className="flex flex-col gap-1 p-2 bg-base-200 rounded border border-base-300">
                             <div className="flex items-center justify-between">
-                              <span className="font-semibold font-code-snippet text-on-surface">Node: {nExec.nodeId}</span>
+                              <span className="font-semibold font-code-snippet text-base-content">Node: {nExec.nodeId}</span>
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${nExec.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                                 {nExec.status}
                               </span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 mt-1">
                               <div className="flex flex-col gap-1">
-                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Input</span>
-                                <pre className="p-1.5 rounded bg-[#131417] text-on-surface-variant text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32">
+                                <span className="text-[10px] text-base-content/70 uppercase tracking-wider">Input</span>
+                                <pre className="p-1.5 rounded bg-base-200 text-base-content/70 text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32">
                                   {JSON.stringify(nExec.input, null, 2)}
                                 </pre>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Output / Error</span>
-                                <pre className={`p-1.5 rounded bg-[#131417] text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32 ${nExec.error ? 'text-rose-400' : 'text-emerald-300'}`}>
+                                <span className="text-[10px] text-base-content/70 uppercase tracking-wider">Output / Error</span>
+                                <pre className={`p-1.5 rounded bg-base-200 text-[9px] font-code-snippet overflow-x-auto whitespace-pre-wrap max-h-32 ${nExec.error ? 'text-rose-400' : 'text-emerald-300'}`}>
                                   {nExec.error ? String(nExec.error) : JSON.stringify(nExec.output, null, 2)}
                                 </pre>
                               </div>
@@ -1408,8 +1370,8 @@ export default function Editor() {
                 ))}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-xs text-on-surface-variant">
-                <span className="material-symbols-outlined text-[28px] text-on-surface-variant mb-1">history</span>
+              <div className="h-full flex flex-col items-center justify-center text-xs text-base-content/70">
+                <span className="material-symbols-outlined text-[28px] text-base-content/70 mb-1">history</span>
                 <span>No executions recorded yet. Run a test or trigger the Webhook URL.</span>
               </div>
             )}
@@ -1417,8 +1379,8 @@ export default function Editor() {
         )}
 
         {consoleTab === 'nexus' && (
-          <div className="h-full w-full p-2 bg-[#0c0d10]">
-            <NexusScene nodes={nodes} edges={edges} activeEvent={activeEvent} healthState={healthState as any} />
+          <div className="h-full w-full p-2 bg-base-200">
+            <WorkflowScene nodes={nodes} edges={edges} activeEvent={activeEvent} healthState={healthState as any} />
           </div>
         )}
       </div>
@@ -1449,71 +1411,76 @@ export default function Editor() {
   }
 
   const iconName = nodeType === 'trigger' ? 'bolt' : nodeType === 'logic' ? 'schema' : nodeType === 'ghost' ? 'block' : (nodeData.icon as string || 'hub');
-  const iconColor = nodeType === 'trigger' ? 'text-primary' : nodeType === 'logic' ? 'text-tertiary' : nodeType === 'ghost' ? 'text-on-surface-variant' : 'text-secondary';
+  const iconColor = nodeType === 'trigger' ? 'text-primary' : nodeType === 'logic' ? 'text-tertiary' : nodeType === 'ghost' ? 'text-base-content/70' : 'text-secondary';
 
   return (
-    <aside className="w-[350px] min-w-[350px] max-w-[350px] border-l border-surface-container-highest dark:border-surface-container-highest bg-[#111215] z-30 shrink-0 flex flex-col justify-between select-none overflow-x-hidden">
+    <aside className="w-[420px] min-w-[420px] max-w-[420px] border-l border-base-200 bg-base-100 z-30 shrink-0 flex flex-col justify-between select-none overflow-x-hidden shadow-sm">
       <div className="flex flex-col h-full overflow-y-auto">
 
         {/* Sidebar Header */}
-        <div className="p-3.5 border-b border-surface-container-highest flex items-center justify-between bg-[#15161a]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded bg-surface-container-high border border-surface-container-highest flex items-center justify-center">
-              <span className={`material-symbols-outlined text-[18px] ${iconColor}`} data-icon={iconName}>{iconName}</span>
+        <div className="p-6 border-b border-base-200 flex items-center justify-between bg-base-50">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-base-200 border border-base-200 flex items-center justify-center shadow-sm">
+              <span className={`material-symbols-outlined text-[20px] ${iconColor}`} data-icon={iconName}>{iconName}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-on-surface truncate max-w-[170px]">{nodeData.label as string || 'Node Configuration'}</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-surface-container border border-surface-container-highest text-on-surface-variant">
+              <span className="text-sm font-bold text-base-content truncate max-w-[200px]">{nodeData.label as string || 'Node Configuration'}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded-md bg-base-200 text-base-content/70">
                   {nodeType}
                 </span>
-                <span className="text-[10px] text-on-surface-variant font-code-snippet">ID: {selectedNode.id}</span>
+                <span className="text-[11px] text-base-content/50 font-mono">ID: {selectedNode.id}</span>
               </div>
             </div>
           </div>
-          <button onClick={() => setSelectedNode(null)} className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Close Panel">
-            <span className="material-symbols-outlined text-[16px]" data-icon="close">close</span>
+          <button onClick={() => setSelectedNode(null)} className="p-2 rounded-full text-base-content/50 hover:text-base-content hover:bg-base-200 transition-colors" title="Close Panel">
+            <span className="material-symbols-outlined text-[20px]" data-icon="close">close</span>
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-surface-container-highest bg-[#0e0f12] px-2">
-          <button 
-            onClick={() => setNodeInspectorTab('config')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${nodeInspectorTab === 'config' ? 'text-primary border-primary-container bg-surface-container-low/50' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">tune</span>
-            <span>Config</span>
-          </button>
-          
-          <button 
-            onClick={() => setNodeInspectorTab('schema')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${nodeInspectorTab === 'schema' ? 'text-tertiary border-tertiary bg-surface-container-low/50' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">data_object</span>
-            <span>Input Schema</span>
-          </button>
+        <div className="px-6 py-4 border-b border-base-200">
+          <div role="tablist" className="tabs tabs-boxed bg-base-200 w-full p-1 gap-1">
+            <a 
+              role="tab"
+              onClick={() => setNodeInspectorTab('config')}
+              className={`tab flex-1 transition-all flex items-center gap-2 text-xs font-semibold h-9 rounded-md ${nodeInspectorTab === 'config' ? 'tab-active bg-base-100 shadow-sm text-primary' : 'text-base-content/60 hover:text-base-content'}`}
+            >
+              <span className="material-symbols-outlined text-[16px]">tune</span>
+              Config
+            </a>
+            
+            <a 
+              role="tab"
+              onClick={() => setNodeInspectorTab('schema')}
+              className={`tab flex-1 transition-all flex items-center gap-2 text-xs font-semibold h-9 rounded-md ${nodeInspectorTab === 'schema' ? 'tab-active bg-base-100 shadow-sm text-tertiary' : 'text-base-content/60 hover:text-base-content'}`}
+            >
+              <span className="material-symbols-outlined text-[16px]">data_object</span>
+              Schema
+            </a>
 
-          <button 
-            onClick={() => setNodeInspectorTab('test')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${nodeInspectorTab === 'test' ? 'text-secondary border-secondary bg-surface-container-low/50' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">play_circle</span>
-            <span>Test &amp; Output</span>
-            {activeNodeResult && (
-              <span className={`w-1.5 h-1.5 rounded-full ${activeNodeResult.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-            )}
-          </button>
+            <a 
+              role="tab"
+              onClick={() => setNodeInspectorTab('test')}
+              className={`tab flex-1 transition-all flex items-center gap-2 text-xs font-semibold h-9 rounded-md ${nodeInspectorTab === 'test' ? 'tab-active bg-base-100 shadow-sm text-secondary' : 'text-base-content/60 hover:text-base-content'}`}
+            >
+              <span className="material-symbols-outlined text-[16px]">play_circle</span>
+              Test
+              {activeNodeResult && (
+                <span className={`w-2 h-2 rounded-full ${activeNodeResult.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+              )}
+            </a>
+          </div>
         </div>
 
         {/* Tab 1: Config */}
         {nodeInspectorTab === 'config' && (
-          <div className="p-3.5 flex flex-col gap-3.5">
+          <div className="p-6 flex flex-col gap-6">
             {/* Common: Node Label */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Node Name / Label</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Node Name / Label</label>
               <input 
-                className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container" 
+                className="input input-bordered input-sm w-full text-sm font-medium" 
                 type="text" 
                 value={(nodeData.label as string) || ''}
                 onChange={(e) => updateSelectedNode('label', e.target.value)}
@@ -1523,12 +1490,12 @@ export default function Editor() {
             {/* TYPE: TRIGGER */}
             {nodeType === 'trigger' && (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Trigger Mechanism</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Trigger Mechanism</label>
                   <select 
                     value={(nodeData.triggerType as string) || 'webhook'}
                     onChange={(e) => updateSelectedNode('triggerType', e.target.value)}
-                    className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                    className="select select-bordered select-sm w-full text-sm font-medium"
                   >
                     <option value="webhook">HTTP Webhook Ingestion (POST)</option>
                     <option value="cron">Scheduled Cron Interval</option>
@@ -1538,22 +1505,22 @@ export default function Editor() {
 
                 {((nodeData.triggerType as string) || 'webhook') === 'webhook' && (
                   <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Endpoint Path</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Endpoint Path</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="text" 
                         value={(nodeData.subtitle as string) || 'POST /v1/events/webhook'}
                         onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
                       />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Auth Verification</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Auth Verification</label>
                       <select 
                         value={(nodeData.authType as string) || 'public'}
                         onChange={(e) => updateSelectedNode('authType', e.target.value)}
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                        className="select select-bordered select-sm w-full text-sm"
                       >
                         <option value="public">Open Public Webhook (No auth required)</option>
                         <option value="hmac">HMAC SHA-256 Signature (Stripe / GitHub)</option>
@@ -1562,35 +1529,35 @@ export default function Editor() {
                     </div>
 
                     {nodeData.authType === 'hmac' && (
-                      <>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Signature Header Name</label>
+                      <div className="bg-base-200/50 p-4 rounded-xl flex flex-col gap-4 border border-base-200">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Signature Header Name</label>
                           <input 
-                            className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                            className="input input-bordered input-sm w-full font-mono text-xs" 
                             type="text" 
                             placeholder="e.g., stripe-signature"
                             value={(nodeData.authHeaderName as string) || ''}
                             onChange={(e) => updateSelectedNode('authHeaderName', e.target.value)}
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Signing Secret</label>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Signing Secret</label>
                           <input 
-                            className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                            className="input input-bordered input-sm w-full font-mono text-xs" 
                             type="password" 
                             placeholder="whsec_..."
                             value={(nodeData.authSecret as string) || ''}
                             onChange={(e) => updateSelectedNode('authSecret', e.target.value)}
                           />
                         </div>
-                      </>
+                      </div>
                     )}
 
                     {nodeData.authType === 'bearer' && (
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Expected Bearer Token</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Expected Bearer Token</label>
                         <input 
-                          className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                          className="input input-bordered input-sm w-full font-mono text-xs" 
                           type="password" 
                           placeholder="sk_live_..."
                           value={(nodeData.authSecret as string) || ''}
@@ -1599,12 +1566,12 @@ export default function Editor() {
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Rate Limit Policy</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Rate Limit Policy</label>
                       <select 
                         value={(nodeData.rateLimit as string) || '5000'}
                         onChange={(e) => updateSelectedNode('rateLimit', e.target.value)}
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                        className="select select-bordered select-sm w-full text-sm"
                       >
                         <option value="1000">1,000 requests / min (Standard)</option>
                         <option value="5000">5,000 requests / min (Scale)</option>
@@ -1612,25 +1579,27 @@ export default function Editor() {
                       </select>
                     </div>
 
+                    <div className="divider my-0"></div>
+
                     {/* Public Ingestion Box */}
-                    <div className="p-2.5 rounded bg-[#08090b] border border-surface-container-highest flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between text-[10px] font-code-snippet text-on-surface-variant">
+                    <div className="p-4 rounded-xl bg-base-200 border border-base-200 flex flex-col gap-3">
+                      <div className="flex items-center justify-between text-xs font-mono text-base-content/70">
                         <span className="font-semibold text-primary">Public Webhook URL</span>
-                        <span className="text-emerald-400">Live</span>
+                        <span className="text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">Live</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <input 
                           readOnly 
                           value={id && id !== 'new' ? `http://localhost:3000/api/v1/wh/${id}` : 'Deploy workflow first'} 
-                          className="bg-[#121316] border border-surface-container-highest rounded px-2 py-1 text-[10px] font-code-snippet text-on-surface flex-1 truncate select-all"
+                          className="input input-bordered input-sm w-full font-mono text-xs bg-base-100 flex-1 select-all"
                         />
                         {id && id !== 'new' && (
                           <button 
                             onClick={() => copyToClipboard(`http://localhost:3000/api/v1/wh/${id}`, 'Webhook URL')}
-                            className="p-1 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-on-surface-variant hover:text-white"
+                            className="btn btn-square btn-sm btn-ghost bg-base-100 border border-base-300 text-base-content/70 hover:text-base-content"
                             title="Copy Webhook URL"
                           >
-                            <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                            <span className="material-symbols-outlined text-[16px]">content_copy</span>
                           </button>
                         )}
                       </div>
@@ -1639,11 +1608,11 @@ export default function Editor() {
                 )}
 
                 {((nodeData.triggerType as string) || 'webhook') === 'cron' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Cron Expression</label>
+                  <div className="bg-base-200/50 p-4 rounded-xl flex flex-col gap-4 border border-base-200">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Cron Expression</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="text" 
                         placeholder="*/5 * * * *"
                         value={(nodeData.cronExpression as string) || '*/5 * * * *'}
@@ -1653,12 +1622,12 @@ export default function Editor() {
                         }}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Timezone</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Timezone</label>
                       <select 
                         value={(nodeData.timezone as string) || 'UTC'}
                         onChange={(e) => updateSelectedNode('timezone', e.target.value)}
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                        className="select select-bordered select-sm w-full text-sm"
                       >
                         <option value="UTC">UTC (Default)</option>
                         <option value="America/New_York">America/New_York (EST/EDT)</option>
@@ -1666,15 +1635,15 @@ export default function Editor() {
                         <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
                       </select>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {((nodeData.triggerType as string) || 'webhook') === 'redis' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Redis Topic / Stream</label>
+                  <div className="bg-base-200/50 p-4 rounded-xl flex flex-col gap-4 border border-base-200">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Redis Topic / Stream</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="text" 
                         placeholder="events:user_signup"
                         value={(nodeData.redisTopic as string) || ''}
@@ -1684,27 +1653,27 @@ export default function Editor() {
                         }}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Consumer Group</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Consumer Group</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="text" 
                         placeholder="flowforge-workers"
                         value={(nodeData.redisConsumerGroup as string) || 'flowforge-workers'}
                         onChange={(e) => updateSelectedNode('redisConsumerGroup', e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Connection Secret (URI)</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Connection Secret (URI)</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="password" 
                         placeholder="redis://..."
                         value={(nodeData.redisUri as string) || ''}
                         onChange={(e) => updateSelectedNode('redisUri', e.target.value)}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -1713,17 +1682,17 @@ export default function Editor() {
             {nodeType === 'logic' && (
               <>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Evaluation Mode</span>
-                  <div className="flex items-center bg-surface-container-highest rounded p-0.5">
+                  <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Evaluation Mode</span>
+                  <div className="join bg-base-200 rounded-md p-1">
                     <button 
                       onClick={() => updateSelectedNode('conditionType', 'visual')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${((nodeData.conditionType as string) || 'visual') === 'visual' ? 'bg-surface-container-lowest text-tertiary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                      className={`join-item btn btn-xs border-none font-medium ${((nodeData.conditionType as string) || 'visual') === 'visual' ? 'bg-base-100 text-tertiary shadow-sm hover:bg-base-100' : 'bg-transparent text-base-content/70 hover:bg-transparent hover:text-base-content'}`}
                     >
                       Visual
                     </button>
                     <button 
                       onClick={() => updateSelectedNode('conditionType', 'code')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${nodeData.conditionType === 'code' ? 'bg-surface-container-lowest text-tertiary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                      className={`join-item btn btn-xs border-none font-medium ${nodeData.conditionType === 'code' ? 'bg-base-100 text-tertiary shadow-sm hover:bg-base-100' : 'bg-transparent text-base-content/70 hover:bg-transparent hover:text-base-content'}`}
                     >
                       Code
                     </button>
@@ -1731,11 +1700,11 @@ export default function Editor() {
                 </div>
 
                 {((nodeData.conditionType as string) || 'visual') === 'visual' ? (
-                  <div className="flex flex-col gap-2 p-2.5 rounded bg-[#08090b] border border-surface-container-highest">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-medium text-on-surface-variant uppercase tracking-wide">Target Field</label>
+                  <div className="flex flex-col gap-4 p-5 rounded-xl bg-base-200/50 border border-base-200">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Target Field</label>
                       <input 
-                        className="w-full bg-[#121316] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-tertiary" 
+                        className="input input-bordered input-sm w-full font-mono text-xs focus:outline-none focus:border-tertiary" 
                         type="text" 
                         placeholder="e.g. payload.amount"
                         value={(nodeData.visualField as string) || ''}
@@ -1746,8 +1715,8 @@ export default function Editor() {
                         }}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-medium text-on-surface-variant uppercase tracking-wide">Operator</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Operator</label>
                       <select 
                         value={(nodeData.visualOperator as string) || '==='}
                         onChange={(e) => {
@@ -1756,7 +1725,7 @@ export default function Editor() {
                           updateSelectedNode('condition', `${field} ${e.target.value} ${nodeData.visualValue || '""'}`);
                           updateSelectedNode('subtitle', `IF: ${field} ${e.target.value} ${nodeData.visualValue || '""'}`);
                         }}
-                        className="w-full bg-[#121316] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-tertiary"
+                        className="select select-bordered select-sm w-full font-mono text-xs focus:outline-none focus:border-tertiary"
                       >
                         <option value="===">Equals (===)</option>
                         <option value="!==">Not Equals (!==)</option>
@@ -1765,10 +1734,10 @@ export default function Editor() {
                         <option value="includes">Contains Text</option>
                       </select>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-medium text-on-surface-variant uppercase tracking-wide">Value</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Value</label>
                       <input 
-                        className="w-full bg-[#121316] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-tertiary" 
+                        className="input input-bordered input-sm w-full font-mono text-xs focus:outline-none focus:border-tertiary" 
                         type="text" 
                         placeholder="e.g. 100 or 'enterprise'"
                         value={(nodeData.visualValue as string) || ''}
@@ -1784,14 +1753,14 @@ export default function Editor() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Condition Expression</label>
-                        <span className="text-[10px] text-tertiary font-code-snippet">JS Sandbox</span>
+                        <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Condition Expression</label>
+                        <span className="text-[10px] bg-tertiary/10 text-tertiary px-2 py-0.5 rounded font-mono font-semibold">JS Sandbox</span>
                       </div>
                       <textarea 
-                        className="w-full bg-[#08090b] border border-surface-container-highest rounded p-2 text-code-snippet font-code-snippet text-[11px] text-emerald-300 focus:outline-none focus:border-tertiary resize-none" 
-                        rows={3} 
+                        className="textarea textarea-bordered w-full font-mono text-xs text-emerald-500 focus:outline-none focus:border-tertiary leading-relaxed resize-none" 
+                        rows={4} 
                         value={(nodeData.condition as string) || (nodeData.subtitle as string) || "account_tier === 'enterprise'"}
                         onChange={(e) => {
                           updateSelectedNode('condition', e.target.value);
@@ -1801,15 +1770,15 @@ export default function Editor() {
                     </div>
 
                     {/* Quick Presets */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-on-surface-variant font-medium">Quick Expression Presets:</span>
-                      <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-col gap-2 mt-2">
+                      <span className="text-xs text-base-content/70 font-medium">Quick Presets:</span>
+                      <div className="flex flex-wrap gap-2">
                         <button 
                           onClick={() => {
                             updateSelectedNode('condition', "account_tier === 'enterprise'");
                             updateSelectedNode('subtitle', "IF: account_tier === 'enterprise'");
                           }}
-                          className="text-[10px] font-code-snippet px-1.5 py-0.5 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-tertiary transition-colors"
+                          className="btn btn-xs bg-base-200 border-none hover:bg-base-300 text-tertiary font-mono font-normal lowercase"
                         >
                           tier === 'enterprise'
                         </button>
@@ -1818,7 +1787,7 @@ export default function Editor() {
                             updateSelectedNode('condition', "payload.amount > 100");
                             updateSelectedNode('subtitle', "IF: payload.amount > 100");
                           }}
-                          className="text-[10px] font-code-snippet px-1.5 py-0.5 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-tertiary transition-colors"
+                          className="btn btn-xs bg-base-200 border-none hover:bg-base-300 text-tertiary font-mono font-normal lowercase"
                         >
                           amount &gt; 100
                         </button>
@@ -1827,7 +1796,7 @@ export default function Editor() {
                             updateSelectedNode('condition', "customer.email.endsWith('.io')");
                             updateSelectedNode('subtitle', "IF: customer.email.endsWith('.io')");
                           }}
-                          className="text-[10px] font-code-snippet px-1.5 py-0.5 rounded bg-surface-container border border-surface-container-highest hover:bg-surface-container-high text-tertiary transition-colors"
+                          className="btn btn-xs bg-base-200 border-none hover:bg-base-300 text-tertiary font-mono font-normal lowercase"
                         >
                           email .io domain
                         </button>
@@ -1836,21 +1805,23 @@ export default function Editor() {
                   </>
                 )}
 
-                <div className="p-2.5 rounded bg-[#08090b] border border-surface-container-highest flex flex-col gap-1.5 mt-2">
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase">Branch Output Sockets</span>
-                  <div className="flex items-center justify-between text-[11px] font-code-snippet px-2 py-1 rounded bg-[#131417]">
-                    <span className="text-tertiary flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                <div className="divider my-0"></div>
+
+                <div className="p-4 rounded-xl bg-base-200 border border-base-200 flex flex-col gap-3">
+                  <span className="text-xs font-semibold text-base-content/70 uppercase">Branch Output Sockets</span>
+                  <div className="flex items-center justify-between text-xs font-mono px-3 py-2 rounded-lg bg-base-100 border border-base-200">
+                    <span className="text-tertiary font-semibold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_rgba(var(--tertiary),0.5)]"></span>
                       Socket 'true'
                     </span>
-                    <span className="text-on-surface-variant">Routes forward</span>
+                    <span className="text-base-content/60">Routes forward</span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-code-snippet px-2 py-1 rounded bg-[#131417]">
-                    <span className="text-on-surface-variant flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-surface-container-highest"></span>
+                  <div className="flex items-center justify-between text-xs font-mono px-3 py-2 rounded-lg bg-base-100 border border-base-200">
+                    <span className="text-base-content/70 font-semibold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-base-300"></span>
                       Socket 'false'
                     </span>
-                    <span className="text-on-surface-variant">Routes secondary</span>
+                    <span className="text-base-content/60">Routes secondary</span>
                   </div>
                 </div>
               </>
@@ -1859,8 +1830,8 @@ export default function Editor() {
             {/* TYPE: ACTION */}
             {nodeType === 'action' && (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Action Provider / Category</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Action Provider</label>
                   <select 
                     value={(nodeData.actionType as string) || 'enrich'}
                     onChange={(e) => {
@@ -1877,7 +1848,7 @@ export default function Editor() {
                         updateMultipleNodeData({ actionType: val, label: 'HTTP Request', subtitle: 'POST https://api.endpoint', icon: 'http' });
                       }
                     }}
-                    className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                    className="select select-bordered select-sm w-full text-sm font-medium"
                   >
                     <option value="enrich">User Enrichment (Clearbit / ZoomInfo)</option>
                     <option value="sink">Postgres &amp; Slack Sink</option>
@@ -1887,12 +1858,14 @@ export default function Editor() {
                   </select>
                 </div>
 
+                <div className="divider my-0"></div>
+
                 {((nodeData.actionType as string) || 'enrich') === 'http' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Target URL</label>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Target URL</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full font-mono text-xs" 
                         type="text" 
                         placeholder="https://api.example.com/v1/data"
                         value={(nodeData.url as string) || ''}
@@ -1902,16 +1875,16 @@ export default function Editor() {
                         }}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">HTTP Method</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Method</label>
                         <select 
                           value={(nodeData.method as string) || 'POST'}
                           onChange={(e) => {
                             updateSelectedNode('method', e.target.value);
                             updateSelectedNode('subtitle', `${e.target.value} ${nodeData.url || 'https://api.endpoint'}`);
                           }}
-                          className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                          className="select select-bordered select-sm w-full text-sm"
                         >
                           <option value="GET">GET</option>
                           <option value="POST">POST</option>
@@ -1920,77 +1893,77 @@ export default function Editor() {
                           <option value="DELETE">DELETE</option>
                         </select>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Timeout (ms)</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Timeout (ms)</label>
                         <input 
-                          className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2 py-1.5 text-code-snippet font-code-snippet text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                          className="input input-bordered input-sm w-full font-mono text-xs" 
                           type="number" 
                           value={nodeData.timeoutMs || 5000}
                           onChange={(e) => updateSelectedNode('timeoutMs', Number(e.target.value))}
                         />
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Headers (JSON)</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Headers (JSON)</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        className="textarea textarea-bordered w-full font-mono text-xs leading-relaxed min-h-[80px]" 
                         placeholder='{"Authorization": "Bearer {{env.API_KEY}}"}'
                         value={(nodeData.headers as string) || ''}
                         onChange={(e) => updateSelectedNode('headers', e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Body Payload (JSON)</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Body Payload (JSON)</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[80px]" 
+                        className="textarea textarea-bordered w-full font-mono text-xs leading-relaxed min-h-[120px]" 
                         placeholder='{"userId": "{{customer.id}}", "event": "signup"}'
                         value={(nodeData.body as string) || ''}
                         onChange={(e) => updateSelectedNode('body', e.target.value)}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {((nodeData.actionType as string) || 'enrich') === 'email' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">To Address</label>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">To Address</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full text-sm" 
                         type="text" 
                         placeholder="{{customer.email}} or user@example.com"
                         value={(nodeData.toAddress as string) || ''}
                         onChange={(e) => updateSelectedNode('toAddress', e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Subject</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Subject</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full text-sm" 
                         type="text" 
                         placeholder="Welcome to FlowForge!"
                         value={(nodeData.subject as string) || ''}
                         onChange={(e) => updateSelectedNode('subject', e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Email Body (Text/HTML)</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Email Body (Text/HTML)</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container min-h-[100px]" 
+                        className="textarea textarea-bordered w-full font-mono text-xs leading-relaxed min-h-[150px]" 
                         placeholder="Hi {{customer.name}},\n\nThanks for signing up!"
                         value={(nodeData.emailBody as string) || ''}
                         onChange={(e) => updateSelectedNode('emailBody', e.target.value)}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {((nodeData.actionType as string) || 'enrich') === 'sink' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Postgres Table Name</label>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Postgres Table Name</label>
                       <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                        className="input input-bordered input-sm w-full text-sm font-mono" 
                         type="text" 
                         placeholder="public.users"
                         value={(nodeData.tableName as string) || ''}
@@ -2000,66 +1973,66 @@ export default function Editor() {
                         }}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Data Mapping (JSON)</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Data Mapping (JSON)</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[100px]" 
+                        className="textarea textarea-bordered w-full font-mono text-xs leading-relaxed min-h-[150px]" 
                         placeholder='{"id": "{{event.id}}", "email": "{{customer.email}}", "status": "active"}'
                         value={(nodeData.dataMapping as string) || ''}
                         onChange={(e) => updateSelectedNode('dataMapping', e.target.value)}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {((nodeData.actionType as string) || 'enrich') === 'ai' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">System Prompt</label>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">System Prompt</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        className="textarea textarea-bordered w-full text-sm leading-relaxed min-h-[100px]" 
                         placeholder="You are an expert data analyst. Extract key themes from the feedback."
                         value={(nodeData.systemPrompt as string) || ''}
                         onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">User Input Data</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">User Input Data</label>
                       <textarea
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[10px] text-on-surface focus:outline-none focus:border-primary-container min-h-[60px]" 
+                        className="textarea textarea-bordered w-full font-mono text-xs leading-relaxed min-h-[80px]" 
                         placeholder="{{event.feedback_text}}"
                         value={(nodeData.userInput as string) || ''}
                         onChange={(e) => updateSelectedNode('userInput', e.target.value)}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {((nodeData.actionType as string) || 'enrich') === 'enrich' && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Target Endpoint / Resource</label>
-                      <input 
-                        className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-code-snippet font-code-snippet text-[11px] text-on-surface focus:outline-none focus:border-primary-container" 
-                        type="text" 
-                        value={(nodeData.subtitle as string) || 'Action'}
-                        onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
-                      />
-                    </div>
-                  </>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Target Endpoint / Resource</label>
+                    <input 
+                      className="input input-bordered input-sm w-full font-mono text-xs" 
+                      type="text" 
+                      value={(nodeData.subtitle as string) || 'Action'}
+                      onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
+                    />
+                  </div>
                 )}
 
-                <div className="pt-2 border-t border-surface-container-highest flex items-center justify-between">
+                <div className="divider my-0"></div>
+
+                <div className="flex items-center justify-between p-2">
                   <div className="flex flex-col">
-                    <span className="text-xs font-medium text-on-surface">Retry on Failure</span>
-                    <span className="text-[10px] text-on-surface-variant">BullMQ DLQ &amp; Exponential Backoff</span>
+                    <span className="text-sm font-medium text-base-content">Retry on Failure</span>
+                    <span className="text-xs text-base-content/60">BullMQ DLQ &amp; Exponential Backoff</span>
                   </div>
-                  <button 
-                    onClick={() => updateSelectedNode('retryEnabled', !nodeData.retryEnabled)}
-                    className={`w-9 h-5 rounded-full relative flex items-center px-0.5 transition-colors duration-200 ${nodeData.retryEnabled !== false ? 'bg-primary-container' : 'bg-surface-container-highest'}`}
-                  >
-                    <span className={`w-4 h-4 rounded-full bg-white absolute shadow transition-transform ${nodeData.retryEnabled !== false ? 'right-0.5' : 'left-0.5'}`}></span>
-                  </button>
+                  <input 
+                    type="checkbox"
+                    className="toggle toggle-primary toggle-sm"
+                    checked={nodeData.retryEnabled !== false}
+                    onChange={() => updateSelectedNode('retryEnabled', !nodeData.retryEnabled)}
+                  />
                 </div>
               </>
             )}
@@ -2067,19 +2040,19 @@ export default function Editor() {
             {/* TYPE: GHOST */}
             {nodeType === 'ghost' && (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Filter / Drop Reason</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Filter / Drop Reason</label>
                   <input 
-                    className="w-full bg-[#090a0c] border border-surface-container-highest rounded px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary-container" 
+                    className="input input-bordered input-sm w-full text-sm" 
                     type="text" 
                     value={(nodeData.subtitle as string) || 'Filtered Stream'}
                     onChange={(e) => updateSelectedNode('subtitle', e.target.value)}
                   />
                 </div>
 
-                <div className="p-2.5 rounded bg-[#08090b] border border-surface-container-highest flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase">Stream Termination</span>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-2 mt-2">
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Stream Termination</span>
+                  <p className="text-xs text-base-content/70 leading-relaxed">
                     Events delivered to this node terminate here. Payloads can be safely inspected in execution logs or routed to the dead-letter queue.
                   </p>
                 </div>
@@ -2087,17 +2060,17 @@ export default function Editor() {
             )}
 
             {/* Telemetry Snapshot Mini-card */}
-            <div className="p-2.5 rounded bg-[#08090b] border border-surface-container-highest flex flex-col gap-1 mt-1">
-              <div className="flex items-center justify-between text-[10px] font-code-snippet text-on-surface-variant">
-                <span>Node Telemetry</span>
+            <div className="p-4 rounded-xl bg-base-200/50 border border-base-200 flex flex-col gap-2 mt-4">
+              <div className="flex items-center justify-between text-xs font-mono text-base-content/70">
+                <span className="font-semibold uppercase tracking-wide">Node Telemetry</span>
                 <span className="text-tertiary">Live Status</span>
               </div>
-              <div className="text-code-snippet font-code-snippet text-[11px] text-on-surface flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${nodeData.executionState === 'completed' ? 'bg-emerald-400' : 'bg-tertiary'}`}></span>
+              <div className="font-mono text-xs text-base-content flex items-center justify-between mt-1">
+                <span className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${nodeData.executionState === 'completed' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-tertiary shadow-[0_0_6px_rgba(var(--tertiary),0.5)]'}`}></span>
                   Status: <span className="font-semibold text-tertiary">{nodeData.status as string || 'Ready'}</span>
                 </span>
-                <span className="text-on-surface-variant">{nodeData.substatus as string || '0ms'}</span>
+                <span className="text-base-content/60 font-semibold">{nodeData.substatus as string || '0ms'}</span>
               </div>
             </div>
           </div>
@@ -2105,54 +2078,56 @@ export default function Editor() {
 
         {/* Tab 2: Input Schema */}
         {nodeInspectorTab === 'schema' && (
-          <div className="p-3.5 flex flex-col gap-3 h-full">
+          <div className="p-6 flex flex-col gap-6 h-full">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-on-surface uppercase tracking-wider">Input Schema</span>
-                <p className="text-[10px] text-on-surface-variant">Expected stream contract delivered to this node</p>
+                <span className="text-sm font-bold text-base-content uppercase tracking-wider">Input Schema</span>
+                <p className="text-xs text-base-content/70 mt-1">Expected stream contract delivered to this node</p>
               </div>
               <button 
                 onClick={() => copyToClipboard(JSON.stringify(nodeSchema, null, 2), 'Input Schema')}
-                className="text-[10px] font-code-snippet text-primary hover:underline flex items-center gap-1"
+                className="btn btn-sm btn-ghost text-primary"
               >
-                <span className="material-symbols-outlined text-[12px]">content_copy</span>
+                <span className="material-symbols-outlined text-[16px]">content_copy</span>
                 Copy
               </button>
             </div>
 
             {/* Condition Evaluation live preview for logic nodes */}
             {nodeType === 'logic' && logicEvalPreview !== null && (
-              <div className={`p-2.5 rounded border flex items-center justify-between ${logicEvalPreview ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">{logicEvalPreview ? 'check_circle' : 'cancel'}</span>
-                  <span className="text-xs font-bold font-code-snippet">
+              <div className={`p-4 rounded-xl border flex items-center justify-between shadow-sm ${logicEvalPreview ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-[20px]">{logicEvalPreview ? 'check_circle' : 'cancel'}</span>
+                  <span className="text-sm font-bold font-mono">
                     Evaluates to: {logicEvalPreview ? 'TRUE' : 'FALSE'}
                   </span>
                 </div>
-                <span className="text-[10px] font-code-snippet">Against test payload</span>
+                <span className="text-xs font-mono opacity-70">Against test payload</span>
               </div>
             )}
 
             {/* Formatted JSON Schema */}
-            <div className="flex flex-col gap-1 flex-1">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">JSON Schema Definition</span>
+            <div className="flex flex-col gap-2 flex-1">
+              <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">JSON Schema Definition</span>
               {nodeType === 'trigger' ? (
                 <textarea 
-                  className="w-full bg-[#08090b] border border-surface-container-highest rounded p-2.5 text-code-snippet font-code-snippet text-[10.5px] text-emerald-300 focus:outline-none focus:border-tertiary resize-none h-56"
+                  className="textarea textarea-bordered w-full font-mono text-xs text-emerald-600 dark:text-emerald-400 leading-relaxed resize-none h-64"
                   value={typeof nodeData.expectedSchema === 'string' ? nodeData.expectedSchema : JSON.stringify(nodeSchema, null, 2)}
                   onChange={(e) => updateSelectedNode('expectedSchema', e.target.value)}
                 />
               ) : (
-                <pre className="bg-[#08090b] border border-surface-container-highest rounded p-2.5 text-code-snippet font-code-snippet text-[10.5px] text-emerald-300 overflow-y-auto max-h-56 whitespace-pre-wrap leading-relaxed">
+                <pre className="bg-base-200/50 border border-base-200 rounded-xl p-4 font-mono text-xs text-emerald-600 dark:text-emerald-400 overflow-y-auto max-h-64 whitespace-pre-wrap leading-relaxed">
                   {JSON.stringify(nodeSchema, null, 2)}
                 </pre>
               )}
             </div>
 
+            <div className="divider my-0"></div>
+
             {/* Live Ingress Sample Payload */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sample Ingress Data</span>
-              <pre className="bg-[#08090b] border border-surface-container-highest rounded p-2 text-code-snippet font-code-snippet text-[10px] text-on-surface-variant overflow-y-auto max-h-32 whitespace-pre-wrap">
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Sample Ingress Data</span>
+              <pre className="bg-base-200/50 border border-base-200 rounded-xl p-4 font-mono text-xs text-base-content/70 overflow-y-auto max-h-48 whitespace-pre-wrap leading-relaxed">
                 {testPayloadText}
               </pre>
             </div>
@@ -2161,45 +2136,45 @@ export default function Editor() {
 
         {/* Tab 3: Test & Output */}
         {nodeInspectorTab === 'test' && (
-          <div className="p-3.5 flex flex-col gap-3 h-full">
+          <div className="p-6 flex flex-col gap-6 h-full">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-on-surface uppercase tracking-wider">Node Test &amp; Output</span>
-                <p className="text-[10px] text-on-surface-variant">Test this node in isolation or view run output</p>
+                <span className="text-sm font-bold text-base-content uppercase tracking-wider">Node Test &amp; Output</span>
+                <p className="text-xs text-base-content/70 mt-1">Test this node in isolation</p>
               </div>
 
               <button 
                 onClick={() => handleTestSingleNode()}
                 disabled={isSingleTesting}
-                className="flex items-center gap-1 px-2.5 py-1 rounded bg-tertiary/15 border border-tertiary/40 text-tertiary hover:bg-tertiary/25 text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                className="btn btn-sm btn-outline text-tertiary hover:bg-tertiary hover:border-tertiary hover:text-white"
               >
                 {isSingleTesting ? (
-                  <span className="w-3 h-3 border-2 border-tertiary border-t-transparent rounded-full animate-spin"></span>
+                  <span className="loading loading-spinner loading-xs"></span>
                 ) : (
-                  <span className="material-symbols-outlined text-[14px]">play_arrow</span>
+                  <span className="material-symbols-outlined text-[16px]">play_arrow</span>
                 )}
                 <span>{isSingleTesting ? 'Testing...' : 'Run Test'}</span>
               </button>
             </div>
 
             {activeNodeResult ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-6 mt-2">
                 {/* Result Card */}
-                <div className="p-2.5 rounded bg-[#08090b] border border-surface-container-highest flex flex-col gap-2">
+                <div className="p-4 rounded-xl bg-base-200/50 border border-base-200 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${activeNodeResult.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${activeNodeResult.status === 'completed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold ${activeNodeResult.status === 'completed' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'}`}>
+                      <span className={`w-2 h-2 rounded-full ${activeNodeResult.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]'}`}></span>
                       {activeNodeResult.status === 'completed' ? '200 OK (SUCCESS)' : 'FAILED'}
                     </span>
-                    <span className="text-xs font-code-snippet text-tertiary font-semibold">
+                    <span className="text-sm font-mono text-tertiary font-bold">
                       ⚡ {activeNodeResult.durationMs}ms
                     </span>
                   </div>
 
                   {nodeType === 'logic' && activeNodeResult.output?._condition?.result !== undefined && (
-                    <div className="text-[11px] font-code-snippet text-on-surface flex items-center justify-between border-t border-surface-container-highest/60 pt-1.5">
-                      <span>Condition Result:</span>
-                      <span className={`font-bold ${activeNodeResult.output._condition.result ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    <div className="text-xs font-mono text-base-content flex items-center justify-between border-t border-base-300 pt-3 mt-1">
+                      <span className="opacity-70">Condition Result:</span>
+                      <span className={`font-bold ${activeNodeResult.output._condition.result ? 'text-emerald-500' : 'text-amber-500'}`}>
                         {activeNodeResult.output._condition.result ? 'TRUE -> Route Branch' : 'FALSE -> Filtered'}
                       </span>
                     </div>
@@ -2207,34 +2182,36 @@ export default function Editor() {
                 </div>
 
                 {/* Transformed Output */}
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Output Payload (JSON)</span>
+                    <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Output Payload (JSON)</span>
                     <button 
                       onClick={() => copyToClipboard(JSON.stringify(activeNodeResult.output || {}, null, 2), 'Node Output')}
-                      className="text-[10px] font-code-snippet text-tertiary hover:underline"
+                      className="btn btn-xs btn-ghost text-tertiary"
                     >
                       Copy
                     </button>
                   </div>
-                  <pre className="bg-[#08090b] border border-surface-container-highest rounded p-2.5 text-code-snippet font-code-snippet text-[10.5px] text-emerald-300 overflow-y-auto max-h-48 whitespace-pre-wrap leading-relaxed">
+                  <pre className="bg-base-200/50 border border-base-200 rounded-xl p-4 font-mono text-xs text-emerald-600 dark:text-emerald-400 overflow-y-auto max-h-64 whitespace-pre-wrap leading-relaxed shadow-inner">
                     {JSON.stringify(activeNodeResult.output || {}, null, 2)}
                   </pre>
                 </div>
 
+                <div className="divider my-0"></div>
+
                 {/* Input Payload */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Input Received</span>
-                  <pre className="bg-[#08090b] border border-surface-container-highest rounded p-2 text-code-snippet font-code-snippet text-[10px] text-on-surface-variant overflow-y-auto max-h-28 whitespace-pre-wrap">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Input Received</span>
+                  <pre className="bg-base-200/50 border border-base-200 rounded-xl p-4 font-mono text-xs text-base-content/70 overflow-y-auto max-h-40 whitespace-pre-wrap leading-relaxed">
                     {JSON.stringify(activeNodeResult.input || parsedPayload || {}, null, 2)}
                   </pre>
                 </div>
               </div>
             ) : (
-              <div className="h-64 flex flex-col items-center justify-center text-center p-4 text-on-surface-variant">
-                <span className="material-symbols-outlined text-[32px] text-on-surface-variant/40 mb-2">science</span>
-                <span className="text-xs font-medium text-on-surface">No Test Executed Yet</span>
-                <p className="text-[11px] max-w-xs mt-1">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-base-content/50 border-2 border-dashed border-base-200 rounded-2xl mt-4">
+                <span className="material-symbols-outlined text-[48px] mb-4 opacity-50">science</span>
+                <span className="text-sm font-bold text-base-content/80 mb-2">No Test Executed Yet</span>
+                <p className="text-xs leading-relaxed max-w-[250px]">
                   Click <strong>"Run Test"</strong> above to evaluate this node with the current sample payload.
                 </p>
               </div>
@@ -2245,25 +2222,25 @@ export default function Editor() {
       </div>
 
       {/* Sidebar Footer Actions */}
-      <div className="p-3 border-t border-surface-container-highest bg-[#15161a] flex flex-col gap-2">
+      <div className="p-6 border-t border-base-200 bg-base-50 flex flex-col gap-3">
         <button 
           onClick={() => handleTestSingleNode()} 
           disabled={isSingleTesting}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-surface-container-highest bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+          className="btn btn-outline border-base-300 hover:bg-base-200 hover:border-base-300 hover:text-base-content w-full flex items-center justify-center gap-2"
         >
           {isSingleTesting ? (
-            <span className="w-3.5 h-3.5 border-2 border-tertiary border-t-transparent rounded-full animate-spin"></span>
+            <span className="loading loading-spinner loading-sm text-tertiary"></span>
           ) : (
-            <span className="material-symbols-outlined text-[15px] text-tertiary" data-icon="play_arrow">play_arrow</span>
+            <span className="material-symbols-outlined text-[18px] text-tertiary" data-icon="play_arrow">play_arrow</span>
           )}
-          <span>{isSingleTesting ? 'Testing Node...' : 'Test This Node'}</span>
+          <span className="font-semibold text-sm">{isSingleTesting ? 'Testing Node...' : 'Test This Node'}</span>
         </button>
         <button 
           onClick={deleteSelectedNode} 
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-medium transition-colors active:scale-[0.98]"
+          className="btn btn-ghost text-rose-500 hover:bg-rose-500/10 w-full flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[15px]">delete</span>
-          <span>Delete Node</span>
+          <span className="material-symbols-outlined text-[18px]">delete</span>
+          <span className="font-semibold text-sm">Delete Node</span>
         </button>
       </div>
     </aside>

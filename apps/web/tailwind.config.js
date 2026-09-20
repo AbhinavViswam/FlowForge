@@ -6,101 +6,11 @@ export default {
   ],
   darkMode: "class",
   theme: {
-    extend: {
-      "colors": {
-        "on-secondary": "#67001b",
-        "surface": "#101319",
-        "primary-container": "#e11d48",
-        "on-secondary-fixed-variant": "#92002a",
-        "on-secondary-fixed": "#40000d",
-        "on-primary-container": "#fffaf9",
-        "error": "#ffb4ab",
-        "background": "#101319",
-        "surface-container": "#1d2026",
-        "secondary-fixed-dim": "#ffb2b7",
-        "tertiary-container": "#008186",
-        "surface-container-high": "#272a31",
-        "primary-fixed": "#ffdada",
-        "surface-dim": "#101319",
-        "on-error-container": "#ffdad6",
-        "surface-bright": "#363940",
-        "secondary-container": "#b50036",
-        "inverse-surface": "#e1e2eb",
-        "surface-container-highest": "#32353c",
-        "on-primary": "#68001a",
-        "tertiary-fixed-dim": "#00dce5",
-        "tertiary-fixed": "#63f7ff",
-        "on-tertiary": "#003739",
-        "on-surface-variant": "#e5bdbe",
-        "outline": "#ac8889",
-        "surface-container-lowest": "#0b0e14",
-        "inverse-primary": "#be0037",
-        "on-primary-fixed-variant": "#920028",
-        "on-tertiary-container": "#f0ffff",
-        "surface-container-low": "#191c22",
-        "secondary-fixed": "#ffdadb",
-        "secondary": "#ffb2b7",
-        "primary": "#ffb3b6",
-        "on-tertiary-fixed": "#002021",
-        "surface-tint": "#ffb3b6",
-        "tertiary": "#00dce5",
-        "on-primary-fixed": "#40000c",
-        "inverse-on-surface": "#2e3037",
-        "on-error": "#690005",
-        "outline-variant": "#5c3f40",
-        "surface-variant": "#32353c",
-        "on-background": "#e1e2eb",
-        "primary-fixed-dim": "#ffb3b6",
-        "error-container": "#93000a",
-        "on-tertiary-fixed-variant": "#004f53",
-        "on-secondary-container": "#ffc2c4",
-        "on-surface": "#e1e2eb"
-      },
-      "borderRadius": {
-        "DEFAULT": "0.125rem",
-        "lg": "0.25rem",
-        "xl": "0.5rem",
-        "full": "0.75rem"
-      },
-      "spacing": {
-        "gutter": "1rem",
-        "space-xl": "2rem",
-        "margin-mobile": "0.75rem",
-        "space-xs": "0.25rem",
-        "margin": "1.5rem",
-        "gutter-dense": "0.5rem",
-        "space-md": "0.75rem",
-        "space-sm": "0.5rem",
-        "space-lg": "1.25rem"
-      },
-      "fontFamily": {
-        "body-lg": ["Inter", "sans-serif"],
-        "body-md": ["Inter", "sans-serif"],
-        "code-snippet": ["JetBrains Mono", "monospace"],
-        "headline-md": ["Plus Jakarta Sans", "sans-serif"],
-        "label-sm": ["JetBrains Mono", "monospace"],
-        "headline-xl-mobile": ["Plus Jakarta Sans", "sans-serif"],
-        "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
-        "body-sm": ["Inter", "sans-serif"],
-        "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
-        "headline-xl": ["Plus Jakarta Sans", "sans-serif"],
-        "label-md": ["JetBrains Mono", "monospace"]
-      },
-      "fontSize": {
-        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
-        "code-snippet": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
-        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
-        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
-        "headline-xl-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-        "headline-sm": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
-        "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
-        "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
-        "headline-xl": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
-        "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
-      }
-    }
+    extend: {}
   },
-  plugins: [],
+  plugins: [require("daisyui")],
+  daisyui: {
+    themes: ["light", "dark"], // Minimal, user-friendly standard themes
+    darkTheme: "dark", // default dark theme
+  }
 }
-

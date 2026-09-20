@@ -7,9 +7,23 @@ import workflowRoutes from './routes/workflows'
 import webhookRoutes from './routes/webhooks'
 import { initScheduler } from './scheduler'
 
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
+
 const fastify = Fastify({
   logger: true
 })
+
+fastify.register(helmet, {
+  global: true,
+  // We need cross-origin resource sharing to work correctly with localhost during dev
+  crossOriginResourcePolicy: false,
+});
+
+fastify.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute'
+});
 
 fastify.register(cors, {
   origin: ['http://localhost:5173', 'http://localhost:5174'],

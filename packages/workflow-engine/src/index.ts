@@ -352,30 +352,87 @@ export async function executeWorkflow(
           const toAddress = interpolate(nodeConfig.toAddress || '', incomingPayload);
           const subject = interpolate(nodeConfig.subject || '', incomingPayload);
           const emailBody = interpolate(nodeConfig.emailBody || '', incomingPayload);
-          
-          if (!toAddress) throw new Error('To Address is missing');
-          if (!subject) throw new Error('Subject is missing');
-          
-          addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress}`, nodeId);
-          
-          // Simulation of Resend Email for demonstration (since we don't have an API key)
-          await new Promise(r => setTimeout(r, 600));
-          
-          outputData = {
-            ...incomingPayload,
-            [node.id]: {
-              sent: true,
-              to: toAddress,
-              subject: subject,
-              provider: 'Resend (Simulated)',
-              timestamp: new Date().toISOString()
+          const fromAddress =
+            interpolate(nodeConfig.fromAddress || '', incomingPayload) ||
+            process.env.EMAIL_FROM ||
+            'onboarding@resend.dev';
+
+          if (!toAddress) throw new Error('Email "To" address is missing');
+          if (!subject) throw new Error('Email subject is missing');
+
+          const apiKey = process.env.RESEND_API_KEY;
+
+          if (!apiKey) {
+            // No provider key configured — fall back to a clearly-marked simulation
+            // so flows still run in development without sending anything.
+            addLog('warn', `[Action] ${nodeName}: RESEND_API_KEY not set — simulating send (no email delivered)`, nodeId);
+            await new Promise(r => setTimeout(r, 300));
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                sent: false,
+                simulated: true,
+                to: toAddress,
+                subject,
+                from: fromAddress,
+                provider: 'resend',
+                timestamp: new Date().toISOString()
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Simulated email to ${toAddress}`, nodeId);
+          } else {
+            addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress} via Resend`, nodeId);
+
+            // Treat the body as HTML if it looks like markup, otherwise plain text.
+            const looksHtml = /<[a-z][\s\S]*>/i.test(emailBody);
+            const message: any = { from: fromAddress, to: [toAddress], subject };
+            if (looksHtml) message.html = emailBody; else message.text = emailBody || subject;
+
+            const timeoutMs = parseInt(nodeConfig.timeoutMs) || 10000;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+              const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(message),
+                signal: controller.signal,
+              });
+              clearTimeout(timeoutId);
+
+              const responseText = await res.text();
+              let data: any = responseText;
+              try { data = JSON.parse(responseText); } catch { /* keep text */ }
+
+              if (!res.ok) {
+                const detail = data && typeof data === 'object' && data.message ? data.message : `HTTP ${res.status}`;
+                throw new Error(`Email send failed: ${detail}`);
+              }
+
+              outputData = {
+                ...incomingPayload,
+                [node.id]: {
+                  sent: true,
+                  id: (data && data.id) || null,
+                  to: toAddress,
+                  subject,
+                  from: fromAddress,
+                  provider: 'resend',
+                  timestamp: new Date().toISOString()
+                }
+              };
+              addLog('success', `[Action] ${nodeName}: Email sent (id ${(data && data.id) || 'n/a'})`, nodeId);
+            } catch (err: any) {
+              clearTimeout(timeoutId);
+              if (err.name === 'AbortError') throw new Error(`Email send timed out after ${timeoutMs}ms`);
+              throw err;
             }
-          };
-          addLog('success', `[Action] ${nodeName}: Email successfully sent`, nodeId);
+          }
         } else if (actionType === 'sink') {
           const tableName = interpolate(nodeConfig.tableName || '', incomingPayload);
-          let dataToInsert: any = {};
-          
+          if (!tableName) throw new Error('Database table name is missing');
+
+          const dataToInsert: Record<string, any> = {};
           try {
             if (nodeConfig.dataMapping) {
               const parsed = JSON.parse(nodeConfig.dataMapping);
@@ -384,47 +441,125 @@ export async function executeWorkflow(
               }
             }
           } catch (e) {
-            throw new Error('Failed to parse Data Mapping JSON');
+            throw new Error('Columns mapping must be valid JSON');
           }
-          
-          if (!tableName) throw new Error('Postgres Table Name is missing');
-          
-          addLog('info', `[Action] ${nodeName}: Inserting into table '${tableName}'`, nodeId);
-          
-          // Simulation of Postgres Insert
-          await new Promise(r => setTimeout(r, 100));
-          
-          outputData = {
-            ...incomingPayload,
-            [node.id]: {
-              persisted: true,
-              table: tableName,
-              insertedData: dataToInsert,
-              rowId: Math.floor(Math.random() * 1000000)
+          if (Object.keys(dataToInsert).length === 0) {
+            throw new Error('No columns to insert — set the Columns (JSON) mapping');
+          }
+
+          // Target DB: the node's own connection string, else a dedicated sink DB,
+          // else the app database. Values are always sent as bound parameters.
+          const connectionString =
+            interpolate(nodeConfig.pgUri || '', incomingPayload) ||
+            process.env.SINK_DATABASE_URL ||
+            process.env.DATABASE_URL ||
+            '';
+
+          if (!connectionString) {
+            addLog('warn', `[Action] ${nodeName}: No database configured — simulating insert (nothing written)`, nodeId);
+            await new Promise(r => setTimeout(r, 80));
+            outputData = {
+              ...incomingPayload,
+              [node.id]: { persisted: false, simulated: true, table: tableName, insertedData: dataToInsert }
+            };
+            addLog('success', `[Action] ${nodeName}: Simulated insert into '${tableName}'`, nodeId);
+          } else {
+            let Client: any;
+            try { Client = require('pg').Client; }
+            catch { throw new Error("The 'pg' package isn't installed. Run: npm install pg"); }
+
+            // Quote identifiers to prevent SQL injection via table/column names.
+            const quoteIdent = (s: string) => '"' + String(s).replace(/"/g, '""') + '"';
+            const tableIdent = tableName.split('.').map(quoteIdent).join('.');
+            const cols = Object.keys(dataToInsert);
+            const colList = cols.map(quoteIdent).join(', ');
+            const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+            const values = cols.map((c) => dataToInsert[c]);
+
+            const needsSsl = /sslmode=(require|verify-ca|verify-full)/i.test(connectionString);
+            const client = new Client({ connectionString, ssl: needsSsl ? { rejectUnauthorized: false } : undefined });
+
+            addLog('info', `[Action] ${nodeName}: Inserting into ${tableName}`, nodeId);
+            await client.connect();
+            try {
+              const result = await client.query(
+                `INSERT INTO ${tableIdent} (${colList}) VALUES (${placeholders}) RETURNING *`,
+                values
+              );
+              outputData = {
+                ...incomingPayload,
+                [node.id]: {
+                  persisted: true,
+                  table: tableName,
+                  insertedData: dataToInsert,
+                  row: result.rows?.[0] ?? null,
+                  rowCount: result.rowCount ?? 0
+                }
+              };
+              addLog('success', `[Action] ${nodeName}: Inserted ${result.rowCount ?? 1} row into '${tableName}'`, nodeId);
+            } finally {
+              await client.end().catch(() => {});
             }
-          };
-          addLog('success', `[Action] ${nodeName}: Row persisted successfully`, nodeId);
+          }
         } else if (actionType === 'ai') {
           const systemPrompt = interpolate(nodeConfig.systemPrompt || '', incomingPayload);
           const userInput = interpolate(nodeConfig.userInput || '', incomingPayload);
-          
-          if (!systemPrompt || !userInput) throw new Error('System Prompt and User Input are required');
-          
-          addLog('info', `[Action] ${nodeName}: Requesting AI transformation`, nodeId);
-          
-          // Simulation of OpenAI call
-          await new Promise(r => setTimeout(r, 1200));
-          
-          outputData = {
-            ...incomingPayload,
-            [node.id]: {
-              transformed: true,
-              result: "AI Generated Summary based on: " + userInput.substring(0, 50) + "...",
-              model: 'gpt-4o-mini (Simulated)',
-              usage: { prompt_tokens: 42, completion_tokens: 15 }
+
+          if (!systemPrompt && !userInput) throw new Error('AI transform needs instructions and/or input data');
+
+          const apiKey = process.env.ANTHROPIC_API_KEY;
+
+          if (!apiKey) {
+            addLog('warn', `[Action] ${nodeName}: ANTHROPIC_API_KEY not set — simulating (no model call)`, nodeId);
+            await new Promise(r => setTimeout(r, 400));
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                transformed: false,
+                simulated: true,
+                result: `(simulated) ${userInput.slice(0, 120)}`,
+                model: 'claude (simulated)'
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Simulated AI transform`, nodeId);
+          } else {
+            const model = (nodeConfig.model as string) || 'claude-opus-5';
+            const maxTokens = parseInt(nodeConfig.maxTokens) || 4096;
+            addLog('info', `[Action] ${nodeName}: Calling ${model}`, nodeId);
+
+            let Anthropic: any;
+            try { Anthropic = (await import('@anthropic-ai/sdk')).default; }
+            catch { throw new Error("The '@anthropic-ai/sdk' package isn't installed. Run: npm install @anthropic-ai/sdk"); }
+
+            const client = new Anthropic({ apiKey });
+            const resp = await client.messages.create({
+              model,
+              max_tokens: maxTokens,
+              ...(systemPrompt ? { system: systemPrompt } : {}),
+              messages: [{ role: 'user', content: userInput || 'Transform the provided input.' }],
+            });
+
+            if (resp.stop_reason === 'refusal') {
+              throw new Error('AI declined this request (safety refusal)');
             }
-          };
-          addLog('success', `[Action] ${nodeName}: AI Transformation completed`, nodeId);
+
+            const text = (resp.content || [])
+              .filter((b: any) => b.type === 'text')
+              .map((b: any) => b.text)
+              .join('\n')
+              .trim();
+
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                transformed: true,
+                result: text,
+                model: resp.model,
+                usage: resp.usage
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: AI transform complete (${resp.usage?.output_tokens ?? '?'} output tokens)`, nodeId);
+          }
         } else {
           // Fallback (e.g. enrich)
           const actionDelay = Math.floor(Math.random() * 20) + 15;

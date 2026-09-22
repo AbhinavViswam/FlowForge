@@ -9,7 +9,12 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@flowforge/shared": "*"
+    "@anthropic-ai/sdk": "^0.70.0",
+    "@flowforge/shared": "*",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
   }
 }
 

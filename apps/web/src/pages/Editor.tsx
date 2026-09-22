@@ -758,10 +758,16 @@ export default function Editor() {
                             <Field label="Security" hint="How incoming requests are verified.">
                               <Select value={(nodeData.authType as string) || 'public'} onChange={(e) => updateSelectedNode('authType', e.target.value)}>
                                 <option value="public">Open — anyone with the URL</option>
-                                <option value="hmac">Signature (HMAC SHA-256, e.g. Stripe/GitHub)</option>
+                                <option value="stripe">Stripe signature</option>
+                                <option value="hmac">Signature (HMAC SHA-256, e.g. GitHub)</option>
                                 <option value="bearer">Bearer token / API key</option>
                               </Select>
                             </Field>
+                            {nodeData.authType === 'stripe' && (
+                              <Field label="Stripe signing secret" hint="From your Stripe webhook endpoint (starts with whsec_). The header is always stripe-signature.">
+                                <Input type="password" className="font-mono" placeholder="whsec_…" value={(nodeData.authSecret as string) || ''} onChange={(e) => updateSelectedNode('authSecret', e.target.value)} />
+                              </Field>
+                            )}
                             {nodeData.authType === 'hmac' && (
                               <div className="flex flex-col gap-4 p-3 rounded-xl bg-surface-2 border border-line">
                                 <Field label="Signature header"><Input className="font-mono" placeholder="stripe-signature" value={(nodeData.authHeaderName as string) || ''} onChange={(e) => updateSelectedNode('authHeaderName', e.target.value)} /></Field>
@@ -866,23 +872,36 @@ export default function Editor() {
 
                         {((nodeData.actionType as string) || '') === 'email' && (
                           <>
+                            <Field label="From" hint="Must be a verified sender in Resend. Leave blank to use the default.">
+                              <Input placeholder="you@yourdomain.com" value={(nodeData.fromAddress as string) || ''} onChange={(e) => updateSelectedNode('fromAddress', e.target.value)} />
+                            </Field>
                             <Field label="To"><Input placeholder="{{customer.email}}" value={(nodeData.toAddress as string) || ''} onChange={(e) => updateSelectedNode('toAddress', e.target.value)} /></Field>
                             <Field label="Subject"><Input placeholder="Welcome!" value={(nodeData.subject as string) || ''} onChange={(e) => updateSelectedNode('subject', e.target.value)} /></Field>
-                            <Field label="Message" hint="Use {{path}} to insert values."><Textarea rows={5} placeholder="Hi {{customer.name}}, thanks for signing up!" value={(nodeData.emailBody as string) || ''} onChange={(e) => updateSelectedNode('emailBody', e.target.value)} /></Field>
+                            <Field label="Message" hint="Plain text or HTML. Use {{path}} to insert values."><Textarea rows={5} placeholder="Hi {{customer.name}}, thanks for signing up!" value={(nodeData.emailBody as string) || ''} onChange={(e) => updateSelectedNode('emailBody', e.target.value)} /></Field>
                           </>
                         )}
 
                         {((nodeData.actionType as string) || '') === 'sink' && (
                           <>
-                            <Field label="Table"><Input className="font-mono" placeholder="public.orders" value={(nodeData.tableName as string) || ''} onChange={(e) => { updateSelectedNode('tableName', e.target.value); updateSelectedNode('subtitle', `Write to ${e.target.value}`); }} /></Field>
-                            <Field label="Columns (JSON)" hint="Map columns to values with {{path}}."><Textarea rows={4} className="font-mono" placeholder='{"email":"{{customer.email}}","amount":"{{amount}}"}' value={(nodeData.dataMapping as string) || ''} onChange={(e) => updateSelectedNode('dataMapping', e.target.value)} /></Field>
+                            <Field label="Table" hint="Include the schema if needed, e.g. public.orders."><Input className="font-mono" placeholder="public.orders" value={(nodeData.tableName as string) || ''} onChange={(e) => { updateSelectedNode('tableName', e.target.value); updateSelectedNode('subtitle', `Write to ${e.target.value}`); }} /></Field>
+                            <Field label="Columns (JSON)" hint="Map each column to a value. Use {{path}} to pull from the event."><Textarea rows={4} className="font-mono" placeholder='{"email":"{{customer.email}}","amount":"{{amount}}"}' value={(nodeData.dataMapping as string) || ''} onChange={(e) => updateSelectedNode('dataMapping', e.target.value)} /></Field>
+                            <Field label="Connection string (optional)" hint="A Postgres URL to write to. Leave blank to use FlowForge's own database. The table must already exist.">
+                              <Input type="password" className="font-mono" placeholder="postgres://user:pass@host:5432/db?sslmode=require" value={(nodeData.pgUri as string) || ''} onChange={(e) => updateSelectedNode('pgUri', e.target.value)} />
+                            </Field>
                           </>
                         )}
 
                         {((nodeData.actionType as string) || '') === 'ai' && (
                           <>
-                            <Field label="Instructions"><Textarea rows={4} placeholder="Summarize the feedback into 3 bullet points." value={(nodeData.systemPrompt as string) || ''} onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)} /></Field>
-                            <Field label="Input data" hint="Use {{path}} to reference incoming data."><Textarea rows={2} className="font-mono" placeholder="{{feedback_text}}" value={(nodeData.userInput as string) || ''} onChange={(e) => updateSelectedNode('userInput', e.target.value)} /></Field>
+                            <Field label="Model">
+                              <Select value={(nodeData.model as string) || 'claude-opus-5'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
+                                <option value="claude-opus-5">Claude Opus 5 — most capable</option>
+                                <option value="claude-sonnet-5">Claude Sonnet 5 — balanced</option>
+                                <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest / cheapest</option>
+                              </Select>
+                            </Field>
+                            <Field label="Instructions" hint="What the model should do."><Textarea rows={4} placeholder="Summarize the feedback into 3 bullet points." value={(nodeData.systemPrompt as string) || ''} onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)} /></Field>
+                            <Field label="Input data" hint="The text to transform. Use {{path}} to pull from the event."><Textarea rows={2} className="font-mono" placeholder="{{feedback_text}}" value={(nodeData.userInput as string) || ''} onChange={(e) => updateSelectedNode('userInput', e.target.value)} /></Field>
                           </>
                         )}
 

@@ -63,6 +63,24 @@ fastify.addContentTypeParser(
   }
 )
 
+// Accept form-encoded webhooks (e.g. Twilio, some Slack events). We keep the raw
+// bytes for signature checks and expose the fields as a plain object to the engine.
+fastify.addContentTypeParser(
+  'application/x-www-form-urlencoded',
+  { parseAs: 'string' },
+  (req, body: string, done) => {
+    ;(req as any).rawBody = body
+    try {
+      const obj: Record<string, string> = {}
+      for (const [k, v] of new URLSearchParams(body)) obj[k] = v
+      done(null, obj)
+    } catch (err: any) {
+      err.statusCode = 400
+      done(err, undefined)
+    }
+  }
+)
+
 fastify.register(authPlugin)
 
 fastify.register(authRoutes, { prefix: '/api/v1/auth' })

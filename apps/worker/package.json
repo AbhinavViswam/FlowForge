@@ -10,7 +10,8 @@
     "@flowforge/shared": "*",
     "@flowforge/workflow-engine": "*",
     "@prisma/client": "^5.22.0",
-    "bullmq": "^6.3.4"
+    "bullmq": "^6.3.4",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

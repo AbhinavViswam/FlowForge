@@ -20,6 +20,9 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0"
+    "@anthropic-ai/sdk": "^0.70.1",
+    "@prisma/client": "^5.22.0",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0"
   }
 }

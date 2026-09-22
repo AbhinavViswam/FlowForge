@@ -18,7 +18,7 @@ Available node types:
    Connect a logic node's outgoing edges with sourceHandle "true" or "false" to branch.
 3. "action" HTTP Request - Config: { actionType: "http", method: "GET"|"POST"|"PUT"|"DELETE"|"PATCH", url: string, headers?: string (JSON), body?: string (JSON) }
 4. "action" Email - Config: { actionType: "email", toAddress: string, subject: string, emailBody: string }
-5. "action" Postgres Sink - Config: { actionType: "sink", tableName: string, dataMapping: string (JSON) }
+5. "action" Save to database - Config: { actionType: "sink", tableName: string, dataMapping: string (JSON mapping columns to values, using {{path}}) }. The target table must already exist.
 6. "action" AI Transform - Config: { actionType: "ai", systemPrompt: string, userInput: string }
 
 Always include a "label" in each node's config describing it.

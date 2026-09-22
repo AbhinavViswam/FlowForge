@@ -72,6 +72,8 @@ model Event {
   receivedAt      DateTime    @default(now())
   workflow        Workflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   executions      Execution[]
+
+  @@index([workflowId, externalEventId])
 }
 
 model Execution {

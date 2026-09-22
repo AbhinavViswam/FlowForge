@@ -49,8 +49,8 @@ export async function reloadCronJobs() {
               const event = await prisma.event.create({
                 data: {
                   workflowId: wf.id,
-                  type: 'cron',
-                  payload: { timestamp: new Date().toISOString() },
+                  headers: { source: 'scheduler' },
+                  payload: { event: 'cron_trigger', timestamp: new Date().toISOString() },
                   externalEventId: `cron-${Date.now()}`
                 }
               });

@@ -39,8 +39,10 @@ It enables users to orchestrate webhooks, conditions, data transformations, and 
 
 4. **Run Database Migrations**
    \`\`\`bash
-   npx prisma migrate dev --schema=packages/prisma/schema.prisma
+   npx prisma migrate deploy --schema=prisma/schema.prisma
    \`\`\`
+   (On a database that already has the tables from an earlier run, baseline it once with
+   \`npx prisma migrate resolve --applied 0_init --schema=prisma/schema.prisma\`.)
 
 5. **Start the Development Servers**
    \`\`\`bash
@@ -74,8 +76,9 @@ FlowForge uses a monorepo architecture managed by NPM workspaces.
 - `apps/api`: The Fastify backend providing REST endpoints and Socket.IO for real-time telemetry.
 - `apps/worker`: The headless BullMQ worker that executes the workflow graphs.
 - `packages/workflow-engine`: The core orchestration logic and node executors.
-- `packages/shared`: Shared types, Zod validation schemas, and constants.
-- `packages/prisma`: Database models and Prisma client.
+- `packages/shared`: Shared types, Zod validation schemas, constants, and the safe condition evaluator.
+- `prisma/`: Database schema (`schema.prisma`) and migrations.
+- `tools/webhook-tester`: A standalone browser tool for firing signed test events at workflow endpoints (see its README).
 
 ## Security
 - API endpoints are protected using Fastify Helmet.

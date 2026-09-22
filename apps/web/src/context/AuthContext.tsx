@@ -2,10 +2,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { LoginInput, RegisterInput } from '@flowforge/shared/src/schemas/auth';
+import { API_V1 } from '../config';
 
 // Configure axios to always send cookies
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api/v1',
+  baseURL: `${API_V1}`,
   withCredentials: true,
 });
 
@@ -41,7 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = async () => {
     try {
       const response = await api.get('/auth/me');
-      setUser(response.data);
+      // /auth/me returns { user: {...} } — unwrap it, otherwise user.email/name are undefined.
+      setUser(response.data.user);
       
       // If we are on login/signup or root, and we are authenticated, redirect to dashboard
       const path = window.location.pathname;

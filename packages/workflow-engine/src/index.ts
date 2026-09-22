@@ -1,4 +1,5 @@
 import { interpolate } from './utils';
+import { evaluateCondition } from '@flowforge/shared';
 
 export interface WorkflowNodeDef {
   id: string;
@@ -71,23 +72,21 @@ export const DEFAULT_TEST_PAYLOAD = {
   }
 };
 
-function evaluateCondition(conditionStr: string, payload: any): boolean {
-  if (!conditionStr || !conditionStr.trim()) return true;
-  let clean = conditionStr.replace(/^IF:\s*/i, '').replace(/eval:\s*/i, '').trim();
-  
-  try {
-    const keys = Object.keys(payload || {});
-    const values = Object.values(payload || {});
-    const fn = new Function('payload', ...keys, `try { return Boolean(${clean}); } catch (e) { return false; }`);
-    return Boolean(fn(payload, ...values));
-  } catch {
-    try {
-      const fnFallback = new Function('payload', `try { with(payload) { return Boolean(${clean}); } } catch (e) { return false; }`);
-      return Boolean(fnFallback(payload));
-    } catch {
-      return false;
-    }
+/** Build a human-readable label for a logic node's condition (for logs/UI). */
+function describeCondition(nodeConfig: any): string {
+  if (nodeConfig?.condition) return String(nodeConfig.condition);
+  if (nodeConfig?.subtitle) return String(nodeConfig.subtitle);
+  if (nodeConfig?.operator && nodeConfig?.field !== undefined) {
+    return `${nodeConfig.field} ${nodeConfig.operator} ${nodeConfig.value ?? ''}`.trim();
   }
+  return "account_tier === 'enterprise'";
+}
+
+/** Resolve what to hand the (eval-free) evaluator: the structured config when
+ *  present, otherwise the expression string, otherwise a sensible default. */
+function conditionInput(nodeConfig: any): any {
+  if (nodeConfig?.operator && nodeConfig?.field !== undefined) return nodeConfig;
+  return nodeConfig?.condition || nodeConfig?.subtitle || "account_tier === 'enterprise'";
 }
 
 export async function executeWorkflow(
@@ -186,8 +185,7 @@ export async function executeWorkflow(
         // If it was a logic node, we might need conditionResult to branch correctly. 
         // For now we'll just evaluate the logic again quickly if it's a logic node.
         if (node.type === 'logic') {
-           const condString = nodeConfig.condition || nodeConfig.subtitle || "account_tier === 'enterprise'";
-           const conditionResult = evaluateCondition(condString, prev.input);
+           const conditionResult = evaluateCondition(conditionInput(nodeConfig), prev.input);
            if (edge.sourceHandle === 'true' && !conditionResult) continue;
            if (edge.sourceHandle === 'false' && conditionResult) continue;
         }
@@ -223,9 +221,9 @@ export async function executeWorkflow(
         addLog('success', `[Trigger] ${nodeName}: Received event '${incomingPayload.event || 'incoming'}'`, nodeId);
       } else if (node.type === 'logic') {
         // Logic / Branch node
-        const condString = nodeConfig.condition || nodeConfig.subtitle || "account_tier === 'enterprise'";
-        conditionResult = evaluateCondition(condString, incomingPayload);
-        
+        const condString = describeCondition(nodeConfig);
+        conditionResult = evaluateCondition(conditionInput(nodeConfig), incomingPayload);
+
         await new Promise(r => setTimeout(r, 4)); // simulate fast eval
         outputData = {
           ...incomingPayload,

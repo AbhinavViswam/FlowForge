@@ -1,21 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { IconButton } from './ui';
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'light'; } catch { return 'light'; }
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    try { localStorage.setItem('theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
   return (
-    <button 
+    <IconButton
+      label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="btn btn-ghost btn-circle btn-sm"
-      aria-label="Toggle Theme"
     >
       {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-    </button>
+    </IconButton>
   );
 }

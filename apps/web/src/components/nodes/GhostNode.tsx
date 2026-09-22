@@ -1,12 +1,12 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Ban } from 'lucide-react';
 
 export default function GhostNode({ data }: NodeProps) {
   return (
-    <div className="px-3 py-1.5 rounded-xl border border-dashed border-base-300 bg-base-200/60 text-sm font-semibold text-base-content/70 flex items-center gap-1.5">
-       <Handle type="target" position={Position.Left} className="opacity-0" />
-       <span className="material-symbols-outlined text-[14px]" data-icon="delete">delete</span>
-       {data.label as string || 'Drop Stream'}
+    <div className="px-3 py-2 rounded-xl border border-dashed border-line bg-surface-2 text-sm font-medium text-muted flex items-center gap-2">
+      <Handle type="target" position={Position.Left} className="!opacity-0" />
+      <Ban size={14} />
+      {(data.label as string) || 'Stop here'}
     </div>
   );
 }
-

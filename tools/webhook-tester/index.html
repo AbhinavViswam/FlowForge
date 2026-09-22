@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FlowForge Webhook Tester</title>
+<style>
+  :root {
+    --bg: #0b0d10; --panel: #14171c; --panel2: #1b1f26; --border: #262b33;
+    --text: #e6e9ee; --muted: #8a93a2; --rose: #e11d48; --emerald: #10b981;
+    --amber: #f59e0b; --indigo: #6366f1; --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-size: 14px;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rose); box-shadow: 0 0 10px var(--rose); }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 12px; }
+  label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 8px 10px; font-size: 13px; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--indigo); }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; line-height: 1.5; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .btn {
+    border: 1px solid var(--border); background: var(--panel2); color: var(--text);
+    border-radius: 7px; padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--indigo); }
+  .btn.primary { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .btn.primary:hover { background: #be123c; }
+  .btn.go { background: var(--emerald); border-color: var(--emerald); color: #04120c; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { flex: 1; padding: 7px; font-size: 12px; background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat .v { font-size: 18px; font-weight: 700; font-family: var(--mono); }
+  .stat .k { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-top: 2px; }
+  .stat.ok .v { color: var(--emerald); } .stat.bad .v { color: var(--rose); }
+  pre { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow: auto; font-family: var(--mono); font-size: 12px; margin: 0; max-height: 260px; }
+  .log { font-family: var(--mono); font-size: 11px; max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 3px; }
+  .log .l { display: flex; gap: 8px; align-items: baseline; }
+  .badge { padding: 1px 6px; border-radius: 5px; font-size: 10px; font-weight: 700; }
+  .b-2 { background: rgba(16,185,129,.15); color: var(--emerald); }
+  .b-4, .b-5, .b-x { background: rgba(225,29,72,.15); color: var(--rose); }
+  .full { grid-column: 1 / -1; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <h1>FlowForge Webhook Tester</h1>
+  <span class="sub">Fires signed HTTP events at your workflow endpoints · runs fully in your browser</span>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: request config -->
+  <div class="card">
+    <h2>Request</h2>
+
+    <label>Target URL</label>
+    <input id="url" value="http://localhost:3000/api/v1/wh/PASTE_WORKFLOW_ID" />
+    <div class="hint">From the editor's <b>Webhook URL</b> tab, or <span style="font-family:var(--mono)">/api/v1/wh/&lt;workflowId&gt;</span>. The workflow must be <b>active</b>.</div>
+
+    <div class="row">
+      <div>
+        <label>Method</label>
+        <select id="method">
+          <option>POST</option><option>PUT</option><option>PATCH</option><option>GET</option><option>DELETE</option>
+        </select>
+      </div>
+      <div>
+        <label>Event id header (x-event-id)</label>
+        <input id="eventId" placeholder="auto if blank" />
+      </div>
+    </div>
+
+    <label>Authentication</label>
+    <div class="seg" id="authSeg">
+      <button data-auth="none" class="on">None</button>
+      <button data-auth="bearer">Bearer</button>
+      <button data-auth="hmac">HMAC SHA-256</button>
+    </div>
+
+    <div id="authBearer" style="display:none">
+      <label>Bearer token</label>
+      <input id="bearerToken" placeholder="matches trigger's Expected Bearer Token" />
+    </div>
+
+    <div id="authHmac" style="display:none">
+      <div class="row">
+        <div>
+          <label>Signature header</label>
+          <input id="hmacHeader" value="x-signature" />
+        </div>
+        <div>
+          <label>Signing secret</label>
+          <input id="hmacSecret" placeholder="whsec_..." />
+        </div>
+      </div>
+      <div class="hint">Signed over the exact bytes sent. Keep <b>Compact JSON</b> on so the digest matches the server (it re-serializes the parsed body).</div>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;text-transform:none;letter-spacing:0;color:var(--text)">
+      <input type="checkbox" id="compact" checked style="width:auto" />
+      Compact JSON before sending (recommended for HMAC)
+    </label>
+
+    <label>Extra headers (JSON, optional)</label>
+    <textarea id="headers" rows="2" placeholder='{"X-Custom":"value"}'></textarea>
+  </div>
+
+  <!-- RIGHT: payload -->
+  <div class="card">
+    <h2>Payload</h2>
+    <label>Preset</label>
+    <select id="preset">
+      <option value="order">order.created (FlowForge default)</option>
+      <option value="standard">order.created (standard tier — filtered)</option>
+      <option value="stripe">Stripe payment_intent.succeeded</option>
+      <option value="github">GitHub push</option>
+      <option value="shopify">Shopify orders/create</option>
+      <option value="signup">user.signup</option>
+    </select>
+    <label>Body (JSON)</label>
+    <textarea id="body" rows="16"></textarea>
+    <div class="hint" id="bodyErr" style="color:var(--amber)"></div>
+  </div>
+
+  <!-- SEND controls -->
+  <div class="card full">
+    <h2>Send</h2>
+    <div class="split">
+      <div>
+        <button class="btn primary" id="sendOne" style="width:100%">Send one request</button>
+        <div class="hint">A single fire-and-inspect. Response shows below.</div>
+      </div>
+      <div>
+        <div class="row">
+          <div><label>Count</label><input type="number" id="count" value="50" min="1" /></div>
+          <div><label>Concurrency</label><input type="number" id="conc" value="5" min="1" /></div>
+          <div><label>Delay ms</label><input type="number" id="delay" value="0" min="0" /></div>
+        </div>
+        <button class="btn go" id="sendBurst" style="width:100%;margin-top:10px">Run burst / load test</button>
+        <button class="btn" id="stopBurst" style="width:100%;margin-top:6px;display:none">Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="card full">
+    <h2>Results</h2>
+    <div class="stats">
+      <div class="stat ok"><div class="v" id="s_ok">0</div><div class="k">2xx</div></div>
+      <div class="stat bad"><div class="v" id="s_bad">0</div><div class="k">non-2xx / err</div></div>
+      <div class="stat"><div class="v" id="s_avg">–</div><div class="k">avg ms</div></div>
+      <div class="stat"><div class="v" id="s_p95">–</div><div class="k">p95 ms</div></div>
+    </div>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat"><div class="v" id="s_min">–</div><div class="k">min ms</div></div>
+      <div class="stat"><div class="v" id="s_max">–</div><div class="k">max ms</div></div>
+      <div class="stat"><div class="v" id="s_rps">–</div><div class="k">req/sec</div></div>
+    </div>
+
+    <div class="split" style="margin-top:12px">
+      <div>
+        <label>Last response</label>
+        <pre id="resp">No requests sent yet.</pre>
+      </div>
+      <div>
+        <label>Request log</label>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder();
+
+const PRESETS = {
+  order: { event:"order.created", account_tier:"enterprise", amount:349.5,
+    customer:{ id:"cust_90214", name:"Sarah Connor", email:"sarah@cyberdyne.io", account_tier:"enterprise" },
+    order:{ id:"ord_1029", currency:"USD" } },
+  standard: { event:"order.created", account_tier:"standard", amount:49,
+    customer:{ id:"cust_std_402", name:"Miles Dyson", email:"miles@standard.net", account_tier:"standard" } },
+  stripe: { id:"evt_1P", type:"payment_intent.succeeded",
+    data:{ object:{ id:"pi_3P", amount:1500, currency:"usd", status:"succeeded" } } },
+  github: { ref:"refs/heads/main", repository:{ full_name:"acme/flowforge" },
+    pusher:{ name:"octocat" }, commits:[{ id:"a1b2c3", message:"feat: ship it" }] },
+  shopify: { id:820982911946154508, email:"jon@doe.ca", total_price:"199.00",
+    currency:"USD", financial_status:"paid", line_items:[{ title:"Widget", quantity:1 }] },
+  signup: { event:"user.signup", user:{ id:123, email:"test@example.com", plan:"free" } },
+};
+
+function setBody(obj){ $('body').value = JSON.stringify(obj, null, 2); validate(); }
+$('preset').onchange = () => setBody(PRESETS[$('preset').value]);
+
+function validate(){
+  try { JSON.parse($('body').value); $('bodyErr').textContent = ''; return true; }
+  catch(e){ $('bodyErr').textContent = 'Invalid JSON: ' + e.message; return false; }
+}
+$('body').oninput = validate;
+
+// auth segmented control
+let authMode = 'none';
+$('authSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  authMode = b.dataset.auth;
+  $('authSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b));
+  $('authBearer').style.display = authMode==='bearer' ? 'block' : 'none';
+  $('authHmac').style.display   = authMode==='hmac'   ? 'block' : 'none';
+});
+
+async function hmacHex(secret, message){
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function buildRequest(){
+  const method = $('method').value;
+  let bodyStr = $('body').value;
+  if ($('compact').checked) { bodyStr = JSON.stringify(JSON.parse(bodyStr)); }
+
+  const headers = { 'Content-Type': 'application/json' };
+  try { Object.assign(headers, JSON.parse($('headers').value || '{}')); } catch {}
+  if ($('eventId').value.trim()) headers['x-event-id'] = $('eventId').value.trim();
+
+  if (authMode === 'bearer') headers['Authorization'] = 'Bearer ' + $('bearerToken').value;
+  if (authMode === 'hmac') {
+    headers[$('hmacHeader').value.trim() || 'x-signature'] = await hmacHex($('hmacSecret').value, bodyStr);
+  }
+  const init = { method, headers };
+  if (method !== 'GET' && method !== 'DELETE') init.body = bodyStr;
+  return init;
+}
+
+async function fireOnce(){
+  const url = $('url').value.trim();
+  const init = await buildRequest();
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, init);
+    const ms = performance.now() - t0;
+    const text = await res.text();
+    let parsed; try { parsed = JSON.parse(text); } catch { parsed = text; }
+    return { ok: res.ok, status: res.status, ms, body: parsed };
+  } catch (e) {
+    return { ok: false, status: 0, ms: performance.now() - t0, body: String(e), networkError: true };
+  }
+}
+
+function logLine(i, r){
+  const cls = r.status >= 200 && r.status < 300 ? 'b-2' : r.networkError ? 'b-x' : 'b-' + String(r.status)[0];
+  const el = document.createElement('div');
+  el.className = 'l';
+  el.innerHTML = `<span style="color:var(--muted)">#${i}</span>
+    <span class="badge ${cls}">${r.networkError ? 'ERR' : r.status}</span>
+    <span style="color:var(--muted)">${r.ms.toFixed(0)}ms</span>`;
+  $('log').prepend(el);
+}
+
+function renderStats(results, wallMs){
+  const ok = results.filter(r => r.status>=200 && r.status<300).length;
+  const times = results.map(r => r.ms).sort((a,b)=>a-b);
+  const p = (q) => times.length ? times[Math.min(times.length-1, Math.floor(q*times.length))] : 0;
+  $('s_ok').textContent = ok;
+  $('s_bad').textContent = results.length - ok;
+  $('s_avg').textContent = times.length ? (times.reduce((a,b)=>a+b,0)/times.length).toFixed(0) : '–';
+  $('s_p95').textContent = times.length ? p(0.95).toFixed(0) : '–';
+  $('s_min').textContent = times.length ? times[0].toFixed(0) : '–';
+  $('s_max').textContent = times.length ? times[times.length-1].toFixed(0) : '–';
+  $('s_rps').textContent = wallMs ? (results.length / (wallMs/1000)).toFixed(1) : '–';
+}
+
+$('sendOne').onclick = async () => {
+  if (!validate()) return;
+  $('sendOne').disabled = true;
+  const r = await fireOnce();
+  $('resp').textContent = `HTTP ${r.status} · ${r.ms.toFixed(0)}ms\n\n` +
+    (typeof r.body === 'string' ? r.body : JSON.stringify(r.body, null, 2));
+  logLine(1, r);
+  renderStats([r], r.ms);
+  $('sendOne').disabled = false;
+};
+
+let stop = false;
+$('stopBurst').onclick = () => { stop = true; };
+
+$('sendBurst').onclick = async () => {
+  if (!validate()) return;
+  const count = Math.max(1, +$('count').value);
+  const conc  = Math.max(1, +$('conc').value);
+  const delay = Math.max(0, +$('delay').value);
+  stop = false;
+  $('sendBurst').disabled = $('sendOne').disabled = true;
+  $('stopBurst').style.display = 'block';
+  $('log').innerHTML = '';
+
+  const results = [];
+  let next = 0;
+  const wall0 = performance.now();
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function worker(){
+    while (!stop) {
+      const i = next++;
+      if (i >= count) break;
+      const r = await fireOnce();
+      results.push(r);
+      logLine(i+1, r);
+      if (results.length % 5 === 0 || results.length === count) renderStats(results, performance.now()-wall0);
+      if (r.body) $('resp').textContent = `HTTP ${r.status} · ${r.ms.toFixed(0)}ms\n\n` +
+        (typeof r.body === 'string' ? r.body : JSON.stringify(r.body, null, 2));
+      if (delay) await sleep(delay);
+    }
+  }
+  await Promise.all(Array.from({length: conc}, worker));
+  renderStats(results, performance.now()-wall0);
+
+  $('sendBurst').disabled = $('sendOne').disabled = false;
+  $('stopBurst').style.display = 'none';
+};
+
+// init
+setBody(PRESETS.order);
+</script>
+</body>
+</html>

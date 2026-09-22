@@ -1,60 +1,43 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Send, Mail, Database, Sparkles, Boxes, CheckCircle2, XCircle } from 'lucide-react';
+
+const handleCls = '!w-3 !h-3 !rounded-full !bg-surface !border-2 !border-accent';
+
+const ICONS: Record<string, any> = {
+  http: Send,
+  email: Mail,
+  sink: Database,
+  ai: Sparkles,
+  enrich: Boxes,
+};
 
 export default function ActionNode({ data, selected }: NodeProps) {
-  const icon = (data.icon as string) || 'hub';
-  const colorClass = (data.color as string) || 'primary-container';
-  const isExecCompleted = data.executionState === 'completed';
-  const isExecFailed = data.executionState === 'failed';
-  const isExecSkipped = data.executionState === 'skipped';
+  const state = data.executionState as string | undefined;
+  const Icon = ICONS[(data.actionType as string) || ''] || Boxes;
 
-  const borderColor = isExecFailed
-    ? 'border-rose-500 shadow-lg shadow-rose-500/20 ring-1 ring-rose-500'
-    : isExecCompleted
-    ? 'border-emerald-500 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-500'
-    : selected 
-    ? `border-${colorClass} shadow-xl shadow-primary/20 ring-1 ring-${colorClass}` 
-    : 'border-base-300 shadow-xl hover:shadow-2xl hover:border-secondary';
-
-  const textClass = isExecCompleted ? 'text-emerald-400' : `text-${colorClass}`;
-  const borderHandle = isExecCompleted ? '!border-emerald-500' : `!border-${colorClass}`;
+  const ring =
+    state === 'failed' ? 'border-danger ring-2 ring-danger/25'
+    : state === 'completed' ? 'border-ok ring-2 ring-ok/25'
+    : selected ? 'border-accent ring-2 ring-accent/25'
+    : 'border-line hover:border-accent/40';
 
   return (
-    <div className={`w-64 bg-base-100 border ${borderColor} rounded-xl p-4 transition-all duration-300 ${isExecSkipped ? 'opacity-40' : ''}`}>
-      <Handle
-        type="target"
-        position={Position.Left}
-        className={`!w-3.5 !h-3.5 !rounded-full !bg-base-200 !border-2 ${borderHandle} cursor-crosshair !-left-2`}
-      />
-      <div className="flex items-center justify-between pb-3 border-b border-base-300">
-        <div className="flex items-center gap-1.5">
-          <span className={`material-symbols-outlined text-[14px] ${textClass}`} data-icon={icon}>{icon}</span>
-          <span className="text-sm font-semibold text-base-content font-semibold truncate max-w-[130px]">{data.label as string}</span>
-        </div>
-        {isExecCompleted ? (
-          <span className="inline-flex items-center gap-1 px-1 py-0.5 rounded-xl text-[9px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            200 OK
+    <div className={`w-56 rounded-xl border bg-surface shadow-card px-3.5 py-3 transition-all ${state === 'skipped' ? 'opacity-50' : ''} ${ring}`}>
+      <Handle type="target" position={Position.Left} className={`${handleCls} !-left-1.5`} />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-7 h-7 rounded-lg bg-surface-2 text-accent grid place-items-center shrink-0 border border-line">
+            <Icon size={15} />
           </span>
-        ) : isExecSkipped ? (
-          <span className="text-[9px] text-base-content/70 font-code-snippet">SKIPPED</span>
-        ) : (
-          <span className="w-1.5 h-1.5 rounded-full bg-base-200"></span>
-        )}
-      </div>
-      <div className="pt-3 flex flex-col gap-1">
-        <span className="font-mono text-[10px] text-base-content/70 truncate">{data.subtitle as string || 'Action'}</span>
-        <div className="flex items-center justify-between text-[10px] font-code-snippet mt-1">
-          <span className={textClass}>{data.status as string || 'Ready'}</span>
-          <span className="text-base-content/70">{data.substatus as string || '0ms'}</span>
+          <span className="text-sm font-semibold text-ink truncate">{(data.label as string) || 'Action'}</span>
         </div>
+        {state === 'completed' ? <CheckCircle2 size={15} className="text-ok shrink-0" />
+          : state === 'failed' ? <XCircle size={15} className="text-danger shrink-0" /> : null}
       </div>
-      
-      <Handle
-        type="source"
-        position={Position.Right}
-        className={`!w-3.5 !h-3.5 !rounded-full !bg-base-200 !border-2 ${borderHandle} cursor-crosshair !-right-2`}
-      />
+      <div className="mt-2 font-mono text-[11px] text-muted truncate">
+        {(data.subtitle as string) || 'Do something…'}
+      </div>
+      <Handle type="source" position={Position.Right} className={`${handleCls} !-right-1.5`} />
     </div>
   );
 }
-

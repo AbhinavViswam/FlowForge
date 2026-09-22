@@ -8,7 +8,6 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/worker/package.json ./apps/worker/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/workflow-engine/package.json ./packages/workflow-engine/
-COPY packages/prisma/package.json ./packages/prisma/
 
 # Install dependencies
 RUN npm ci
@@ -16,8 +15,8 @@ RUN npm ci
 # Copy full source
 COPY . .
 
-# Generate prisma client
-RUN npm run build -w @flowforge/prisma || npx prisma generate --schema=packages/prisma/schema.prisma
+# Generate prisma client (schema lives at the repo root, not in a package)
+RUN npx prisma generate --schema=prisma/schema.prisma
 
 # Build all packages and apps
 RUN npm run build

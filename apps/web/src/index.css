@@ -2,59 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .bg-grid {
-    background-size: 32px 32px;
-    background-image: 
-      linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
-  }
+/* ------------------------------------------------------------------ */
+/* Design tokens. Values are R G B channels so Tailwind opacity works. */
+/* Themes switch via the data-theme attribute set by ThemeToggle.      */
+/* ------------------------------------------------------------------ */
+:root,
+[data-theme="light"] {
+  --c-canvas: 247 248 250;      /* app background        */
+  --c-surface: 255 255 255;     /* cards / panels        */
+  --c-surface-2: 246 247 249;   /* subtle fills / inputs */
+  --c-line: 228 231 236;        /* borders               */
+  --c-ink: 17 24 39;            /* primary text          */
+  --c-muted: 100 116 139;       /* secondary text        */
+  --c-faint: 148 163 184;       /* tertiary text         */
+  --c-accent: 79 70 229;        /* indigo-600            */
+  --c-accent-ink: 255 255 255;  /* text on accent        */
+  --c-accent-soft: 238 242 255; /* accent tint bg        */
+  --c-ok: 22 163 74;
+  --c-warn: 217 119 6;
+  --c-danger: 220 38 38;
+}
+
+[data-theme="dark"] {
+  --c-canvas: 13 15 20;
+  --c-surface: 22 25 31;
+  --c-surface-2: 30 34 42;
+  --c-line: 42 47 57;
+  --c-ink: 232 236 242;
+  --c-muted: 148 160 178;
+  --c-faint: 100 112 130;
+  --c-accent: 129 140 248;      /* indigo-400 (brighter on dark) */
+  --c-accent-ink: 12 14 20;
+  --c-accent-soft: 39 37 71;
+  --c-ok: 52 211 153;
+  --c-warn: 245 158 11;
+  --c-danger: 248 113 113;
+}
+
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+body {
+  background-color: rgb(var(--c-canvas));
+  color: rgb(var(--c-ink));
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Thin, quiet scrollbars that match the theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--c-line)) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-faint)); background-clip: content-box; }
+
+/* Dotted canvas background for the workflow editor */
+.bg-grid {
+  background-size: 22px 22px;
+  background-image: radial-gradient(rgb(var(--c-line) / 0.9) 1px, transparent 1px);
 }
 
 @keyframes pulseLed {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.35; transform: scale(0.85); }
 }
+.animate-led { animation: pulseLed 2s infinite ease-in-out; }
 
-.animate-led {
-  animation: pulseLed 2s infinite ease-in-out;
+/* React Flow theming to match the design tokens */
+.react-flow__attribution { display: none; }
+.react-flow__controls { box-shadow: var(--tw-shadow, 0 1px 3px rgb(0 0 0 / 0.1)); border-radius: 0.5rem; overflow: hidden; }
+.react-flow__controls-button {
+  background: rgb(var(--c-surface));
+  border-bottom: 1px solid rgb(var(--c-line));
+  color: rgb(var(--c-muted));
 }
+.react-flow__controls-button:hover { background: rgb(var(--c-surface-2)); }
+.react-flow__controls-button svg { fill: currentColor; }
+.react-flow__minimap { background: rgb(var(--c-surface)) !important; border: 1px solid rgb(var(--c-line)); border-radius: 0.5rem; }
 
-
-/* av-toastx DaisyUI Overrides */
+/* av-toastx: map to design tokens so toasts match both themes */
 html, html[data-theme="light"], html[data-theme="dark"] {
-  --toast-border: 1px solid oklch(var(--b3));
-  --toast-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --toast-border: 1px solid rgb(var(--c-line));
+  --toast-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.25);
 
-  /* Success */
-  --success-bg: oklch(var(--b1));
-  --success-accent: oklch(var(--su));
-  --success-text: oklch(var(--bc));
-  --success-sub: oklch(var(--bc) / 0.7);
-  --success-border: oklch(var(--su) / 0.3);
+  --success-bg: rgb(var(--c-surface));
+  --success-accent: rgb(var(--c-ok));
+  --success-text: rgb(var(--c-ink));
+  --success-sub: rgb(var(--c-muted));
+  --success-border: rgb(var(--c-line));
   --success-glow: transparent;
 
-  /* Error */
-  --error-bg: oklch(var(--b1));
-  --error-accent: oklch(var(--er));
-  --error-text: oklch(var(--bc));
-  --error-sub: oklch(var(--bc) / 0.7);
-  --error-border: oklch(var(--er) / 0.3);
+  --error-bg: rgb(var(--c-surface));
+  --error-accent: rgb(var(--c-danger));
+  --error-text: rgb(var(--c-ink));
+  --error-sub: rgb(var(--c-muted));
+  --error-border: rgb(var(--c-line));
   --error-glow: transparent;
 
-  /* Info */
-  --info-bg: oklch(var(--b1));
-  --info-accent: oklch(var(--in));
-  --info-text: oklch(var(--bc));
-  --info-sub: oklch(var(--bc) / 0.7);
-  --info-border: oklch(var(--in) / 0.3);
+  --info-bg: rgb(var(--c-surface));
+  --info-accent: rgb(var(--c-accent));
+  --info-text: rgb(var(--c-ink));
+  --info-sub: rgb(var(--c-muted));
+  --info-border: rgb(var(--c-line));
   --info-glow: transparent;
 
-  /* Default */
-  --default-bg: oklch(var(--b1));
-  --default-accent: oklch(var(--bc));
-  --default-text: oklch(var(--bc));
-  --default-sub: oklch(var(--bc) / 0.7);
-  --default-border: oklch(var(--b3));
+  --default-bg: rgb(var(--c-surface));
+  --default-accent: rgb(var(--c-ink));
+  --default-text: rgb(var(--c-ink));
+  --default-sub: rgb(var(--c-muted));
+  --default-border: rgb(var(--c-line));
   --default-glow: transparent;
 }

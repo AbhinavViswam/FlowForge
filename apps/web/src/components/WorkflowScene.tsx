@@ -2,6 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Html, Line } from '@react-three/drei';
 import { useRef, useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
+import { Box as BoxIcon } from 'lucide-react';
 
 // Node type shapes
 const geometryByShape = {
@@ -227,8 +228,8 @@ export default function WorkflowScene({ nodes, edges, activeEvent, healthState =
       
       <div className="absolute top-4 left-4 flex flex-col gap-1 pointer-events-none">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-xl">view_in_ar</span>
-          <span className="text-white font-display font-semibold tracking-wide">NEXUS VISUALIZER</span>
+          <BoxIcon className="text-indigo-400" size={18} />
+          <span className="text-white font-display font-semibold tracking-wide text-sm">Live run — 3D view</span>
           {activeEvent && activeEvent.type === 'execution_started' && (
             <span className="ml-3 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase border border-emerald-500/30 animate-pulse">
               Live Execution

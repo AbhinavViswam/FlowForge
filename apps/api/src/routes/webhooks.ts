@@ -57,26 +57,56 @@ export default async function webhookRoutes(fastify: FastifyInstance) {
       } else if (authType === 'hmac') {
         const headerName = (config.authHeaderName || '').toLowerCase();
         const secret = config.authSecret;
-        const signature = request.headers[headerName];
-        
+        const rawSig = request.headers[headerName];
+        const signature = Array.isArray(rawSig) ? rawSig[0] : rawSig;
+
         if (!signature) {
           return reply.code(401).send({ error: `Unauthorized: Missing HMAC signature in header '${headerName}'` });
         }
-        
+        if (!secret) {
+          return reply.code(500).send({ error: 'HMAC configured but no signing secret set on the trigger node.' });
+        }
+
         const crypto = require('crypto');
-        // Simple HMAC validation assuming JSON payload
-        const rawBody = JSON.stringify(payload);
-        const computedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-        
-        // Also allow matching if the signature contains the computed signature (e.g. Stripe format)
-        if (signature !== computedSignature && !(typeof signature === 'string' && signature.includes(computedSignature))) {
+        // Verify against the EXACT received bytes, not a re-serialized copy.
+        const rawBody = (request as any).rawBody ?? JSON.stringify(payload);
+        const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+        // Accept a bare hex digest or a "sha256=<hex>" prefixed value (GitHub style).
+        const provided = signature.startsWith('sha256=') ? signature.slice(7) : signature;
+
+        const a = Buffer.from(provided, 'utf8');
+        const b = Buffer.from(computed, 'utf8');
+        const valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+        if (!valid) {
           return reply.code(401).send({ error: 'Unauthorized: Invalid HMAC signature' });
         }
       }
     }
 
+    // Idempotency: if the caller supplies a stable id (x-event-id / idempotency-key),
+    // don't ingest or execute the same event twice — return the original acceptance.
+    const idempotencyKey = (headers['x-event-id'] as string) || (headers['idempotency-key'] as string)
+    if (idempotencyKey) {
+      const existing = await prisma.event.findFirst({
+        where: { workflowId, externalEventId: idempotencyKey },
+        include: { executions: { orderBy: { startedAt: 'desc' }, take: 1 } }
+      })
+      if (existing) {
+        return reply.code(200).send({
+          received: true,
+          deduplicated: true,
+          workflowId: workflow.id,
+          eventId: existing.id,
+          executionId: existing.executions[0]?.id ?? null,
+          status: 'duplicate',
+          message: 'Event already ingested; idempotent replay ignored.'
+        })
+      }
+    }
+
     // Ingest event into database
-    const externalEventId = (headers['x-event-id'] as string) || (headers['stripe-signature'] ? 'stripe_' + Date.now() : `wh_${Date.now()}`)
+    const externalEventId = idempotencyKey || (headers['stripe-signature'] ? 'stripe_' + Date.now() : `wh_${Date.now()}`)
     const event = await prisma.event.create({
       data: {
         workflowId,

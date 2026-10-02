@@ -27,6 +27,23 @@ import { API_BASE, API_V1, webhookUrl } from '../config';
 import { Button, Input, Textarea, Select, Field, Badge, Toggle, cn } from '../components/ui';
 
 const nodeTypes = { trigger: TriggerNode, logic: LogicNode, action: ActionNode, ghost: GhostNode };
+
+// Stable string signature of the saved parts of an editor (name, active flag,
+// node configs/positions, edges). Used to tell real edits from no-op re-renders
+// (selection, hover) so autosave only fires when something actually changed.
+// Works for both state nodes (data) and persisted nodes (config).
+function serializeDefinition(name: string, active: boolean, nodeList: any[], edgeList: any[]) {
+  return JSON.stringify({
+    name,
+    active,
+    nodes: (nodeList || []).map((n: any) => ({
+      id: n.id, type: n.type || 'default', config: n.config ?? n.data ?? {}, position: n.position ?? { x: 0, y: 0 },
+    })),
+    edges: (edgeList || []).map((e: any) => ({
+      source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, targetHandle: e.targetHandle ?? null,
+    })),
+  });
+}
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
@@ -86,6 +103,16 @@ export default function Editor() {
   const [nodeInspectorTab, setNodeInspectorTab] = useState<'config' | 'schema' | 'test'>('config');
   const [singleNodeTestResult, setSingleNodeTestResult] = useState<Record<string, any>>({});
   const [isSingleTesting, setIsSingleTesting] = useState(false);
+  const [connections, setConnections] = useState<any[]>([]);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving' | 'error'>('saved');
+
+  // Autosave bookkeeping. lastSavedRef holds the signature of what's persisted;
+  // loadedRef gates autosave until the initial load settles; savingRef prevents
+  // overlapping saves; autosaveTimer debounces bursts of edits.
+  const lastSavedRef = React.useRef<string>('');
+  const loadedRef = React.useRef<boolean>(false);
+  const savingRef = React.useRef<boolean>(false);
+  const autosaveTimer = React.useRef<any>(null);
 
   const healthState = React.useMemo(() => {
     if (!executionsList || executionsList.length === 0) return 'healthy';
@@ -121,27 +148,43 @@ export default function Editor() {
     }
   };
 
+  // Load the user's saved email connections (for the email step's picker).
   useEffect(() => {
-    if (id === 'new') { setNodes([]); setEdges([]); } else if (id) {
+    axios.get(`${API_V1}/connections`, { withCredentials: true })
+      .then(res => setConnections(res.data.connections || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadedRef.current = false; // block autosave while (re)loading
+    if (id === 'new') {
+      setNodes([]); setEdges([]);
+      lastSavedRef.current = '';
+      setSaveStatus('saved');
+    } else if (id) {
       axios.get(`${API_V1}/workflows/${id}`, { withCredentials: true })
         .then(res => {
-          if (res.data.workflow?.status) setIsActive(res.data.workflow.status === 'active');
-          if (res.data.workflow?.name) setWorkflowName(res.data.workflow.name);
+          const loadedActive = res.data.workflow?.status === 'active';
+          const loadedName = res.data.workflow?.name || workflowName;
+          if (res.data.workflow?.status) setIsActive(loadedActive);
+          if (res.data.workflow?.name) setWorkflowName(loadedName);
           const version = res.data.workflow.versions?.[0];
-          if (version && version.definition) {
-            const def = version.definition;
-            if (def.nodes && def.nodes.length > 0) {
-              setNodes(def.nodes.map((n: any) => ({ id: n.id, type: n.type, data: n.config, position: n.position || { x: 0, y: 0 } })));
-            } else { setNodes([]); }
-            if (def.edges) {
-              setEdges(def.edges.map((e: any) => ({
-                id: `${e.source}-${e.target}`, source: e.source, target: e.target,
-                sourceHandle: e.sourceHandle, targetHandle: e.targetHandle,
-                type: 'smoothstep', animated: true,
-                style: { stroke: 'rgb(var(--c-accent))', strokeWidth: 2 },
-              })));
-            } else { setEdges([]); }
-          } else { setNodes([]); setEdges([]); }
+          const def = version?.definition || {};
+          const loadedNodes = Array.isArray(def.nodes) ? def.nodes : [];
+          const loadedEdges = Array.isArray(def.edges) ? def.edges : [];
+          if (loadedNodes.length > 0) {
+            setNodes(loadedNodes.map((n: any) => ({ id: n.id, type: n.type, data: n.config, position: n.position || { x: 0, y: 0 } })));
+          } else { setNodes([]); }
+          setEdges(loadedEdges.map((e: any) => ({
+            id: `${e.source}-${e.target}`, source: e.source, target: e.target,
+            sourceHandle: e.sourceHandle, targetHandle: e.targetHandle,
+            type: 'smoothstep', animated: true,
+            style: { stroke: 'rgb(var(--c-accent))', strokeWidth: 2 },
+          })));
+          // Record the just-loaded state as "saved" so we don't autosave it back.
+          lastSavedRef.current = serializeDefinition(loadedName, loadedActive, loadedNodes, loadedEdges);
+          setSaveStatus('saved');
+          loadedRef.current = true;
         })
         .catch(console.error);
       fetchExecutions();
@@ -179,16 +222,15 @@ export default function Editor() {
 
   const updateMultipleNodeData = (patch: Record<string, any>) => {
     if (!selectedNode) return;
-    const updated = { ...selectedNode, data: { ...selectedNode.data, ...patch } };
-    setSelectedNode(updated);
-    setNodes((nds) => nds.map((n) => n.id === updated.id ? updated : n));
+    const id = selectedNode.id;
+    // Use functional updates so two calls in the same tick (e.g. condition + subtitle)
+    // compose instead of the second clobbering the first from a stale closure.
+    setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, ...patch } } : prev));
+    setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
   };
 
   const updateSelectedNode = (key: string, value: any) => {
-    if (!selectedNode) return;
-    const updated = { ...selectedNode, data: { ...selectedNode.data, [key]: value } };
-    setSelectedNode(updated);
-    setNodes((nds) => nds.map((n) => n.id === updated.id ? updated : n));
+    updateMultipleNodeData({ [key]: value });
   };
 
   const getNodeInputSchema = (node: Node | null) => {
@@ -381,6 +423,9 @@ export default function Editor() {
       const activeStateToUse = overrideActiveState !== undefined ? overrideActiveState : isActive;
       await axios.post(`${API_V1}/workflows/${workflowId}/activate`, definition, { withCredentials: true });
       if (!activeStateToUse) await axios.post(`${API_V1}/workflows/${workflowId}/deactivate`, {}, { withCredentials: true });
+      // Mark current canvas as the saved baseline so autosave won't re-fire for it.
+      lastSavedRef.current = serializeDefinition(workflowName, activeStateToUse, nodes, edges);
+      setSaveStatus('saved');
       toast.success('Saved');
       if (id === 'new') navigate(`/editor/${workflowId}`, { replace: true });
       return workflowId;
@@ -392,6 +437,43 @@ export default function Editor() {
       setIsDeploying(false);
     }
   };
+
+  // Silent background save (no toast, no deploy spinner) used by autosave.
+  const autosave = useCallback(async () => {
+    if (!id || id === 'new') return;            // unsaved new workflows wait for the first manual Save
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaveStatus('saving');
+    const snapshot = serializeDefinition(workflowName, isActive, nodes, edges);
+    try {
+      await axios.put(`${API_V1}/workflows/${id}`, { name: workflowName }, { withCredentials: true });
+      const definition = {
+        nodes: nodes.map(n => ({ id: n.id, type: n.type || 'default', config: n.data, position: n.position })),
+        edges: edges.map(e => ({ source: e.source, target: e.target, sourceHandle: (e as any).sourceHandle ?? null, targetHandle: (e as any).targetHandle ?? null })),
+      };
+      await axios.post(`${API_V1}/workflows/${id}/activate`, definition, { withCredentials: true });
+      if (!isActive) await axios.post(`${API_V1}/workflows/${id}/deactivate`, {}, { withCredentials: true });
+      lastSavedRef.current = snapshot;
+      // Only show "saved" if nothing new was typed while this request was in flight.
+      setSaveStatus(serializeDefinition(workflowName, isActive, nodes, edges) === snapshot ? 'saved' : 'unsaved');
+    } catch (err) {
+      console.error('Autosave failed', err);
+      setSaveStatus('error');
+    } finally {
+      savingRef.current = false;
+    }
+  }, [id, workflowName, isActive, nodes, edges]);
+
+  // Debounced autosave: whenever the definition actually changes, save ~1.2s later.
+  useEffect(() => {
+    if (!loadedRef.current || !id || id === 'new') return;
+    const current = serializeDefinition(workflowName, isActive, nodes, edges);
+    if (current === lastSavedRef.current) return; // no real change (e.g. selection/hover)
+    setSaveStatus('unsaved');
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => { autosave(); }, 1200);
+    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
+  }, [workflowName, isActive, nodes, edges, id, autosave]);
 
   const onToggleActive = async (nextState: boolean) => {
     setIsActive(nextState);
@@ -441,6 +523,14 @@ export default function Editor() {
           <Button size="sm" variant="secondary" onClick={handleRunTest} loading={isTesting}>
             <Play size={15} /> <span className="hidden sm:inline">{isTesting ? 'Running…' : 'Test'}</span>
           </Button>
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-muted min-w-[104px] justify-end" title="Changes save automatically">
+            {saveStatus === 'saving' && (<><RefreshCw size={13} className="animate-spin" /> Saving…</>)}
+            {saveStatus === 'saved' && (<><CheckCircle2 size={13} className="text-ok" /> Saved</>)}
+            {saveStatus === 'unsaved' && (<><span className="w-1.5 h-1.5 rounded-full bg-warn" /> Unsaved changes</>)}
+            {saveStatus === 'error' && (
+              <button onClick={() => autosave()} className="flex items-center gap-1 text-danger hover:underline"><XCircle size={13} /> Save failed — retry</button>
+            )}
+          </div>
           <Button size="sm" onClick={() => onSave()} loading={isDeploying}>
             <Save size={15} /> <span className="hidden sm:inline">Save</span>
           </Button>
@@ -872,9 +962,33 @@ export default function Editor() {
 
                         {((nodeData.actionType as string) || '') === 'email' && (
                           <>
-                            <Field label="From" hint="Must be a verified sender in Resend. Leave blank to use the default.">
-                              <Input placeholder="you@yourdomain.com" value={(nodeData.fromAddress as string) || ''} onChange={(e) => updateSelectedNode('fromAddress', e.target.value)} />
+                            <Field label="Send from" hint="Pick a saved Gmail/SMTP account. Manage these in Account → Connections.">
+                              <Select value={(nodeData.connectionId as string) || ''} onChange={(e) => updateSelectedNode('connectionId', e.target.value)}>
+                                <option value="">Server default (environment settings)</option>
+                                {connections.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.name}{c.username ? ` — ${c.username}` : ''}</option>
+                                ))}
+                              </Select>
                             </Field>
+                            {connections.length === 0 ? (
+                              <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[11px] text-muted">
+                                <Info size={13} className="mt-0.5 shrink-0" />
+                                <span>No saved connections yet. <Link to="/account" className="text-accent hover:underline">Add your Gmail in Account → Connections</Link> to send from your own account.</span>
+                              </div>
+                            ) : (nodeData.connectionId as string) ? (
+                              <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[11px] text-muted">
+                                <Info size={13} className="mt-0.5 shrink-0" />
+                                <span>This sends from the selected connection's address — no "From" needed. (Gmail always sends from the connected account.)</span>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-muted -mt-1">Secrets are stored encrypted and reused across all your automations.</div>
+                            )}
+                            {/* From is only an override for the server default / custom SMTP — a saved connection already defines it. */}
+                            {!(nodeData.connectionId as string) && (
+                              <Field label="From address" hint="Optional. Leave blank to use the default sender.">
+                                <Input placeholder="you@yourdomain.com" value={(nodeData.fromAddress as string) || ''} onChange={(e) => updateSelectedNode('fromAddress', e.target.value)} />
+                              </Field>
+                            )}
                             <Field label="To"><Input placeholder="{{customer.email}}" value={(nodeData.toAddress as string) || ''} onChange={(e) => updateSelectedNode('toAddress', e.target.value)} /></Field>
                             <Field label="Subject"><Input placeholder="Welcome!" value={(nodeData.subject as string) || ''} onChange={(e) => updateSelectedNode('subject', e.target.value)} /></Field>
                             <Field label="Message" hint="Plain text or HTML. Use {{path}} to insert values."><Textarea rows={5} placeholder="Hi {{customer.name}}, thanks for signing up!" value={(nodeData.emailBody as string) || ''} onChange={(e) => updateSelectedNode('emailBody', e.target.value)} /></Field>
@@ -893,11 +1007,19 @@ export default function Editor() {
 
                         {((nodeData.actionType as string) || '') === 'ai' && (
                           <>
-                            <Field label="Model">
-                              <Select value={(nodeData.model as string) || 'claude-opus-5'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
-                                <option value="claude-opus-5">Claude Opus 5 — most capable</option>
-                                <option value="claude-sonnet-5">Claude Sonnet 5 — balanced</option>
-                                <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest / cheapest</option>
+                            <Field label="Model" hint="Gemini runs on Google's free tier. Add a GEMINI_API_KEY to enable it.">
+                              <Select value={(nodeData.model as string) || 'gemini-2.0-flash'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
+                                <optgroup label="Google Gemini (free tier)">
+                                  <option value="gemini-2.0-flash">Gemini 2.0 Flash — fast, free</option>
+                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash — newer</option>
+                                  <option value="gemini-1.5-flash">Gemini 1.5 Flash — legacy</option>
+                                  <option value="gemini-2.5-pro">Gemini 2.5 Pro — most capable</option>
+                                </optgroup>
+                                <optgroup label="Anthropic Claude (needs ANTHROPIC_API_KEY)">
+                                  <option value="claude-opus-5">Claude Opus 5 — most capable</option>
+                                  <option value="claude-sonnet-5">Claude Sonnet 5 — balanced</option>
+                                  <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest / cheapest</option>
+                                </optgroup>
                               </Select>
                             </Field>
                             <Field label="Instructions" hint="What the model should do."><Textarea rows={4} placeholder="Summarize the feedback into 3 bullet points." value={(nodeData.systemPrompt as string) || ''} onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)} /></Field>
@@ -926,6 +1048,10 @@ export default function Editor() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-ink">Expected input</span>
                       <button onClick={() => copyToClipboard(JSON.stringify(nodeSchema, null, 2), 'Schema')} className="text-xs text-accent hover:underline flex items-center gap-1"><Copy size={12} /> Copy</button>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[11px] text-muted">
+                      <Info size={13} className="mt-0.5 shrink-0" />
+                      <span>Reference only — this doesn't restrict incoming data. Any JSON payload is accepted; this just documents the shape and seeds the sample event.</span>
                     </div>
                     {nodeType === 'trigger' ? (
                       <Textarea rows={12} className="font-mono text-[11px]" value={typeof nodeData.expectedSchema === 'string' ? nodeData.expectedSchema : JSON.stringify(nodeSchema, null, 2)} onChange={(e) => updateSelectedNode('expectedSchema', e.target.value)} />

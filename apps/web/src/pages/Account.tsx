@@ -5,6 +5,7 @@ import { useToast } from 'av-toastx';
 import { ArrowLeft, User, Lock, LogOut } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import Connections from '../components/Connections';
 import { Button, Input, Field, Card } from '../components/ui';
 
 export default function Account() {
@@ -78,7 +79,7 @@ export default function Account() {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-ink">Account settings</h1>
-          <p className="text-sm text-muted mt-1">Manage your profile and password.</p>
+          <p className="text-sm text-muted mt-1">Manage your profile, password, and email connections.</p>
         </div>
 
         {/* Profile */}
@@ -129,6 +130,9 @@ export default function Account() {
             </div>
           </form>
         </Card>
+
+        {/* Email connections */}
+        <Connections />
 
         {/* Sign out */}
         <Card className="p-6 border-danger/20">

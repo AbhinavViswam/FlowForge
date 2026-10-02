@@ -2,7 +2,40 @@ import 'dotenv/config';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import { prisma } from './db';
-import { executeWorkflow } from '@flowforge/workflow-engine';
+import { executeWorkflow, SmtpCredentials } from '@flowforge/workflow-engine';
+import { decryptSecret } from './crypto';
+
+// Collect every connectionId referenced by email steps, load the owner's
+// connections, decrypt their secrets, and return a resolved creds map for the
+// engine. Failures for one connection are logged and skipped (that step then
+// falls back to env/simulation) rather than failing the whole run.
+async function resolveConnections(definition: any, userId: string): Promise<Record<string, SmtpCredentials>> {
+  const ids = Array.from(new Set(
+    (definition?.nodes || [])
+      .map((n: any) => (n?.config || n?.data || {}).connectionId)
+      .filter((v: any): v is string => typeof v === 'string' && v.length > 0)
+  ));
+  if (ids.length === 0) return {};
+
+  const rows = await prisma.connection.findMany({ where: { id: { in: ids as string[] }, userId } });
+  const map: Record<string, SmtpCredentials> = {};
+  for (const row of rows) {
+    try {
+      const meta = (row.meta || {}) as any;
+      map[row.id] = {
+        host: meta.host || 'smtp.gmail.com',
+        port: meta.port || (meta.secure ? 465 : 587),
+        secure: !!meta.secure,
+        user: meta.username || '',
+        pass: decryptSecret(row.secret),
+        from: meta.fromAddress || meta.username || '',
+      };
+    } catch (err) {
+      console.error(`[Worker] Failed to decrypt connection ${row.id}:`, (err as Error).message);
+    }
+  }
+  return map;
+}
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -18,7 +51,8 @@ const worker = new Worker('workflow-execution', async (job: Job) => {
 
   try {
     const version = await prisma.workflowVersion.findUnique({
-      where: { id: workflowVersionId }
+      where: { id: workflowVersionId },
+      include: { workflow: { select: { userId: true } } }
     });
 
     if (!version || !version.definition) {
@@ -26,6 +60,9 @@ const worker = new Worker('workflow-execution', async (job: Job) => {
     }
 
     const definition = version.definition as any;
+
+    // Resolve any saved email connections this workflow references (decrypted).
+    const resolvedConnections = await resolveConnections(definition, version.workflow.userId);
 
     const previousNodes = await prisma.nodeExecution.findMany({
       where: { executionId }
@@ -58,11 +95,12 @@ const worker = new Worker('workflow-execution', async (job: Job) => {
     publishEvent('execution_started', { startedAt: new Date().toISOString(), attempt: job.attemptsMade + 1 });
 
     const result = await executeWorkflow(
-      definition, 
-      payload, 
+      definition,
+      payload,
       previousResults,
       (log) => publishEvent('log', log),
-      (nodeRes) => publishEvent('node_complete', nodeRes)
+      (nodeRes) => publishEvent('node_complete', nodeRes),
+      { connections: resolvedConnections }
     );
     
     publishEvent('execution_finished', { status: result.status, durationMs: Date.now() - startTime });

@@ -17,6 +17,24 @@ model User {
   workflows    Workflow[]
   apiKeys      APIKey[]
   auditLogs    AuditLog[]
+  connections  Connection[]
+}
+
+// A reusable, user-owned credential (e.g. a Gmail/SMTP account) that email
+// steps reference by id. The secret (app password) is stored encrypted at rest
+// with AES-256-GCM; only non-secret metadata is ever returned to the client.
+model Connection {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  type      String   @default("smtp") // smtp (gmail/custom)
+  meta      Json?    // { host, port, secure, username, fromAddress } — non-secret
+  secret    String   // encrypted app password: "v1:<ivB64>:<tagB64>:<ctB64>"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Workflow {

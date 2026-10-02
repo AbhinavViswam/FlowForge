@@ -11,10 +11,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
     "@flowforge/shared": "*",
+    "nodemailer": "^6.10.1",
     "pg": "^8.13.1"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.11.10"
   }
 }
-

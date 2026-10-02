@@ -5,6 +5,7 @@ import authPlugin from './plugins/auth'
 import authRoutes from './routes/auth'
 import workflowRoutes from './routes/workflows'
 import webhookRoutes from './routes/webhooks'
+import connectionRoutes from './routes/connections'
 import { initScheduler } from './scheduler'
 import { initializeRedisConsumers } from './services/redis-consumer'
 
@@ -85,6 +86,7 @@ fastify.register(authPlugin)
 
 fastify.register(authRoutes, { prefix: '/api/v1/auth' })
 fastify.register(workflowRoutes, { prefix: '/api/v1/workflows' })
+fastify.register(connectionRoutes, { prefix: '/api/v1/connections' })
 fastify.register(webhookRoutes, { prefix: '/webhooks' })
 fastify.register(webhookRoutes, { prefix: '/api/v1/wh' })
 

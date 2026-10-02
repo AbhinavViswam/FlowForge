@@ -89,13 +89,33 @@ function conditionInput(nodeConfig: any): any {
   return nodeConfig?.condition || nodeConfig?.subtitle || "account_tier === 'enterprise'";
 }
 
+// Resolved SMTP credentials for a saved Connection, injected by the caller
+// (worker/API) after decrypting the user's secret. The engine never touches the
+// database or the encryption key itself.
+export interface SmtpCredentials {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from?: string;
+}
+
+export interface ExecuteOptions {
+  // Map of connectionId -> resolved SMTP credentials, for email steps that
+  // reference a saved connection via nodeConfig.connectionId.
+  connections?: Record<string, SmtpCredentials>;
+}
+
 export async function executeWorkflow(
-  definition: WorkflowDefinition, 
+  definition: WorkflowDefinition,
   initialPayload?: any,
   previousResults?: Record<string, NodeExecutionResult>,
   onLog?: (log: WorkflowLog) => void,
-  onNodeComplete?: (res: NodeExecutionResult) => void
+  onNodeComplete?: (res: NodeExecutionResult) => void,
+  options?: ExecuteOptions
 ): Promise<WorkflowExecutionResult> {
+  const connectionCreds = options?.connections || {};
   const startTime = Date.now();
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const logs: WorkflowLog[] = [];
@@ -352,43 +372,91 @@ export async function executeWorkflow(
           const toAddress = interpolate(nodeConfig.toAddress || '', incomingPayload);
           const subject = interpolate(nodeConfig.subject || '', incomingPayload);
           const emailBody = interpolate(nodeConfig.emailBody || '', incomingPayload);
+
+          // Prefer a saved per-user Connection (resolved + decrypted by the caller)
+          // when the step references one; otherwise fall back to env-level SMTP/Gmail.
+          const savedConn = nodeConfig.connectionId ? connectionCreds[nodeConfig.connectionId] : undefined;
+
+          let smtpHost = '';
+          let smtpUser = '';
+          let smtpPass = '';
+          let smtpPort = 587;
+          let smtpSecure = false;
+          let connFrom = '';
+
+          if (savedConn) {
+            smtpHost = savedConn.host;
+            smtpUser = savedConn.user;
+            smtpPass = (savedConn.pass || '').replace(/\s+/g, '');
+            smtpPort = savedConn.port || (savedConn.secure ? 465 : 587);
+            smtpSecure = !!savedConn.secure;
+            connFrom = savedConn.from || savedConn.user;
+          } else {
+            // Env fallback. GMAIL_* are a convenience alias defaulting host to smtp.gmail.com.
+            smtpHost = process.env.SMTP_HOST || (process.env.GMAIL_USER ? 'smtp.gmail.com' : '');
+            smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '';
+            // App Passwords are shown grouped as "abcd efgh ijkl mnop"; strip the spaces.
+            smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+            const envSecure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+            smtpPort = parseInt(process.env.SMTP_PORT || '', 10) || (envSecure ? 465 : 587);
+            smtpSecure = process.env.SMTP_SECURE ? envSecure : smtpPort === 465;
+            connFrom = process.env.EMAIL_FROM || smtpUser;
+          }
+          const useSmtp = !!(smtpHost && smtpUser && smtpPass);
+
+          const apiKey = process.env.RESEND_API_KEY;
+
           const fromAddress =
             interpolate(nodeConfig.fromAddress || '', incomingPayload) ||
+            connFrom ||
             process.env.EMAIL_FROM ||
-            'onboarding@resend.dev';
+            // Gmail rewrites the From to the authenticated account anyway, so default to it.
+            (useSmtp ? smtpUser : 'onboarding@resend.dev');
 
           if (!toAddress) throw new Error('Email "To" address is missing');
           if (!subject) throw new Error('Email subject is missing');
 
-          const apiKey = process.env.RESEND_API_KEY;
+          // Treat the body as HTML if it looks like markup, otherwise plain text.
+          const looksHtml = /<[a-z][\s\S]*>/i.test(emailBody);
+          const timeoutMs = parseInt(nodeConfig.timeoutMs) || 10000;
 
-          if (!apiKey) {
-            // No provider key configured — fall back to a clearly-marked simulation
-            // so flows still run in development without sending anything.
-            addLog('warn', `[Action] ${nodeName}: RESEND_API_KEY not set — simulating send (no email delivered)`, nodeId);
-            await new Promise(r => setTimeout(r, 300));
+          if (useSmtp) {
+            addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress} via SMTP (${smtpHost}:${smtpPort})`, nodeId);
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+              host: smtpHost,
+              port: smtpPort,
+              secure: smtpSecure, // true for 465, false for 587 (STARTTLS)
+              auth: { user: smtpUser, pass: smtpPass },
+              connectionTimeout: timeoutMs,
+              greetingTimeout: timeoutMs,
+              socketTimeout: timeoutMs,
+            });
+
+            const mail: any = { from: fromAddress, to: toAddress, subject };
+            if (looksHtml) mail.html = emailBody; else mail.text = emailBody || subject;
+
+            const info = await transporter.sendMail(mail);
             outputData = {
               ...incomingPayload,
               [node.id]: {
-                sent: false,
-                simulated: true,
+                sent: true,
+                id: info.messageId || null,
                 to: toAddress,
                 subject,
                 from: fromAddress,
-                provider: 'resend',
+                provider: 'smtp',
+                host: smtpHost,
                 timestamp: new Date().toISOString()
               }
             };
-            addLog('success', `[Action] ${nodeName}: Simulated email to ${toAddress}`, nodeId);
-          } else {
+            addLog('success', `[Action] ${nodeName}: Email sent via SMTP (id ${info.messageId || 'n/a'})`, nodeId);
+          } else if (apiKey) {
             addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress} via Resend`, nodeId);
 
-            // Treat the body as HTML if it looks like markup, otherwise plain text.
-            const looksHtml = /<[a-z][\s\S]*>/i.test(emailBody);
             const message: any = { from: fromAddress, to: [toAddress], subject };
             if (looksHtml) message.html = emailBody; else message.text = emailBody || subject;
 
-            const timeoutMs = parseInt(nodeConfig.timeoutMs) || 10000;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             try {
@@ -427,6 +495,24 @@ export async function executeWorkflow(
               if (err.name === 'AbortError') throw new Error(`Email send timed out after ${timeoutMs}ms`);
               throw err;
             }
+          } else {
+            // No SMTP creds and no Resend key — fall back to a clearly-marked
+            // simulation so flows still run in development without sending anything.
+            addLog('warn', `[Action] ${nodeName}: No email provider configured (set SMTP_*/GMAIL_* or RESEND_API_KEY) — simulating send`, nodeId);
+            await new Promise(r => setTimeout(r, 300));
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                sent: false,
+                simulated: true,
+                to: toAddress,
+                subject,
+                from: fromAddress,
+                provider: 'none',
+                timestamp: new Date().toISOString()
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Simulated email to ${toAddress}`, nodeId);
           }
         } else if (actionType === 'sink') {
           const tableName = interpolate(nodeConfig.tableName || '', incomingPayload);
@@ -507,31 +593,88 @@ export async function executeWorkflow(
 
           if (!systemPrompt && !userInput) throw new Error('AI transform needs instructions and/or input data');
 
-          const apiKey = process.env.ANTHROPIC_API_KEY;
+          // Google Gemini (free tier) is the primary provider; Claude is used only
+          // if a Gemini key isn't present but an Anthropic one is.
+          const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+          const anthropicKey = process.env.ANTHROPIC_API_KEY;
+          const maxTokens = parseInt(nodeConfig.maxTokens) || 4096;
+          const configuredModel = (nodeConfig.model as string) || '';
 
-          if (!apiKey) {
-            addLog('warn', `[Action] ${nodeName}: ANTHROPIC_API_KEY not set — simulating (no model call)`, nodeId);
-            await new Promise(r => setTimeout(r, 400));
-            outputData = {
-              ...incomingPayload,
-              [node.id]: {
-                transformed: false,
-                simulated: true,
-                result: `(simulated) ${userInput.slice(0, 120)}`,
-                model: 'claude (simulated)'
-              }
+          if (geminiKey) {
+            // Default to a fast, free-tier Gemini model unless the node picked one.
+            const model = (configuredModel && /gemini/i.test(configuredModel)) ? configuredModel : 'gemini-2.0-flash';
+            addLog('info', `[Action] ${nodeName}: Calling Google ${model}`, nodeId);
+
+            const body: any = {
+              contents: [{ role: 'user', parts: [{ text: userInput || 'Transform the provided input.' }] }],
+              generationConfig: { maxOutputTokens: maxTokens },
             };
-            addLog('success', `[Action] ${nodeName}: Simulated AI transform`, nodeId);
-          } else {
-            const model = (nodeConfig.model as string) || 'claude-opus-5';
-            const maxTokens = parseInt(nodeConfig.maxTokens) || 4096;
+            if (systemPrompt) body.system_instruction = { parts: [{ text: systemPrompt }] };
+
+            const timeoutMs = parseInt(nodeConfig.timeoutMs) || 30000;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+              const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+                  body: JSON.stringify(body),
+                  signal: controller.signal,
+                }
+              );
+              clearTimeout(timeoutId);
+
+              const responseText = await res.text();
+              let data: any = responseText;
+              try { data = JSON.parse(responseText); } catch { /* keep text */ }
+
+              if (!res.ok) {
+                const detail = data?.error?.message || `HTTP ${res.status}`;
+                throw new Error(`Gemini request failed: ${detail}`);
+              }
+
+              // Safety block or empty candidate.
+              const blockReason = data?.promptFeedback?.blockReason;
+              if (blockReason) throw new Error(`Gemini blocked the prompt (${blockReason})`);
+
+              const candidate = data?.candidates?.[0];
+              const text = (candidate?.content?.parts || [])
+                .map((p: any) => p?.text || '')
+                .join('')
+                .trim();
+
+              if (!text) {
+                const finish = candidate?.finishReason || 'no content';
+                throw new Error(`Gemini returned no text (finishReason: ${finish})`);
+              }
+
+              outputData = {
+                ...incomingPayload,
+                [node.id]: {
+                  transformed: true,
+                  result: text,
+                  model,
+                  provider: 'gemini',
+                  usage: data?.usageMetadata || null,
+                }
+              };
+              addLog('success', `[Action] ${nodeName}: AI transform complete (${data?.usageMetadata?.candidatesTokenCount ?? '?'} output tokens)`, nodeId);
+            } catch (err: any) {
+              clearTimeout(timeoutId);
+              if (err.name === 'AbortError') throw new Error(`Gemini request timed out after ${timeoutMs}ms`);
+              throw err;
+            }
+          } else if (anthropicKey) {
+            const model = (configuredModel && /claude/i.test(configuredModel)) ? configuredModel : 'claude-opus-5';
             addLog('info', `[Action] ${nodeName}: Calling ${model}`, nodeId);
 
             let Anthropic: any;
             try { Anthropic = (await import('@anthropic-ai/sdk')).default; }
             catch { throw new Error("The '@anthropic-ai/sdk' package isn't installed. Run: npm install @anthropic-ai/sdk"); }
 
-            const client = new Anthropic({ apiKey });
+            const client = new Anthropic({ apiKey: anthropicKey });
             const resp = await client.messages.create({
               model,
               max_tokens: maxTokens,
@@ -555,10 +698,24 @@ export async function executeWorkflow(
                 transformed: true,
                 result: text,
                 model: resp.model,
+                provider: 'anthropic',
                 usage: resp.usage
               }
             };
             addLog('success', `[Action] ${nodeName}: AI transform complete (${resp.usage?.output_tokens ?? '?'} output tokens)`, nodeId);
+          } else {
+            addLog('warn', `[Action] ${nodeName}: No AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY) — simulating`, nodeId);
+            await new Promise(r => setTimeout(r, 400));
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                transformed: false,
+                simulated: true,
+                result: `(simulated) ${userInput.slice(0, 120)}`,
+                model: 'gemini (simulated)'
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Simulated AI transform`, nodeId);
           }
         } else {
           // Fallback (e.g. enrich)

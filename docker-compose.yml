@@ -33,8 +33,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=super-secret-key-change-in-production
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-byte-min-encryption-key}
       - SINK_DATABASE_URL=${SINK_DATABASE_URL:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-onboarding@resend.dev}
     depends_on:
@@ -53,10 +55,14 @@ services:
       - DATABASE_URL=postgresql://flowforge:flowforge_password@db:5432/flowforge
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-byte-min-encryption-key}
       - SINK_DATABASE_URL=${SINK_DATABASE_URL:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-onboarding@resend.dev}
+      - GMAIL_USER=${GMAIL_USER:-}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

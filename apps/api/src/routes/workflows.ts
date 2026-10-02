@@ -5,10 +5,45 @@ import {
   updateWorkflowSchema, 
   activateWorkflowSchema 
 } from '@flowforge/shared'
-import { executeWorkflow, DEFAULT_TEST_PAYLOAD } from '@flowforge/workflow-engine'
+import { executeWorkflow, DEFAULT_TEST_PAYLOAD, SmtpCredentials } from '@flowforge/workflow-engine'
+import { decryptSecret } from '../crypto'
 import { reloadCronJobs } from '../scheduler'
 import { workflowQueue } from '../queue'
 import { generateWorkflow } from '../ai'
+
+// Resolve + decrypt the email connections referenced by a definition, scoped to
+// the owning user, so test runs use the same saved accounts the worker would.
+async function resolveConnectionsForUser(definition: any, userId: string): Promise<Record<string, SmtpCredentials>> {
+  const ids = Array.from(new Set(
+    (definition?.nodes || [])
+      .map((n: any) => (n?.config || n?.data || {}).connectionId)
+      .filter((v: any): v is string => typeof v === 'string' && v.length > 0)
+  )) as string[]
+  if (ids.length === 0) return {}
+  const rows = await prisma.connection.findMany({ where: { id: { in: ids }, userId } })
+  const map: Record<string, SmtpCredentials> = {}
+  for (const row of rows) {
+    try {
+      const meta = (row.meta || {}) as any
+      map[row.id] = {
+        host: meta.host || 'smtp.gmail.com',
+        port: meta.port || (meta.secure ? 465 : 587),
+        secure: !!meta.secure,
+        user: meta.username || '',
+        pass: decryptSecret(row.secret),
+        from: meta.fromAddress || meta.username || '',
+      }
+    } catch (err) {
+      request_log_safe(err)
+    }
+  }
+  return map
+}
+
+function request_log_safe(err: unknown) {
+  // eslint-disable-next-line no-console
+  console.error('[API] Failed to decrypt a connection for test run:', (err as Error).message)
+}
 
 export default async function workflowRoutes(fastify: FastifyInstance) {
   // All workflow routes require authentication
@@ -286,8 +321,10 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: 'No workflow definition nodes found to execute test.' })
     }
 
+    const resolvedConnections = await resolveConnectionsForUser(definition, user.id)
+
     const startTime = new Date()
-    const result = await executeWorkflow(definition, testPayload)
+    const result = await executeWorkflow(definition, testPayload, undefined, undefined, undefined, { connections: resolvedConnections })
     const finishedTime = new Date()
 
     // Persist to Prisma if workflow and version exist in DB

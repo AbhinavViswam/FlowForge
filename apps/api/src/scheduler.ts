@@ -34,15 +34,23 @@ export async function reloadCronJobs() {
     // Find trigger nodes
     const triggerNodes = def.nodes.filter((n: any) => n.type === 'trigger');
     for (const trigger of triggerNodes) {
-      if (trigger.data?.triggerType === 'cron') {
-        const expr = trigger.data.cronExpression || '0 * * * *';
-        const jobId = `${wf.id}_${trigger.id}`;
+      // Saved definitions keep node settings under `config` (older ones used `data`).
+      const triggerConfig = trigger.config || trigger.data || {};
+      if (triggerConfig.triggerType === 'cron') {
+        // Defaults match what the editor shows when the fields are left untouched.
+        const expr = triggerConfig.cronExpression || '*/5 * * * *';
+        const timezone = triggerConfig.timezone || 'UTC';
+        // Key on version + expression + timezone so an edited schedule or edited
+        // steps replace the old job instead of leaving it running the previous version.
+        const jobId = `${wf.id}_${trigger.id}_${version.id}_${expr}_${timezone}`;
         currentJobIds.add(jobId);
 
         // If job already running with same id, skip
         if (!activeJobs.has(jobId)) {
-          if (cron.validate(expr)) {
-            console.log(`[Scheduler] Scheduling ${wf.name} on ${expr}`);
+          if (!cron.validate(expr)) {
+            console.warn(`[Scheduler] Skipping ${wf.name}: invalid cron expression '${expr}'`);
+          } else {
+            console.log(`[Scheduler] Scheduling ${wf.name} on ${expr} (${timezone})`);
             const task = cron.schedule(expr, async () => {
               console.log(`[Scheduler] Triggering ${wf.name}`);
               
@@ -77,7 +85,7 @@ export async function reloadCronJobs() {
                   delay: 2000
                 }
               });
-            });
+            }, { timezone });
             activeJobs.set(jobId, task);
           }
         }

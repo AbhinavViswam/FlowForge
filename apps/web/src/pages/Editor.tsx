@@ -18,6 +18,7 @@ import TriggerNode from '../components/nodes/TriggerNode';
 import LogicNode from '../components/nodes/LogicNode';
 import ActionNode from '../components/nodes/ActionNode';
 import GhostNode from '../components/nodes/GhostNode';
+import DeletableEdge from '../components/edges/DeletableEdge';
 import Logo from '../components/Logo';
 import WorkflowScene from '../components/WorkflowScene';
 import ThemeToggle from '../components/ThemeToggle';
@@ -27,6 +28,7 @@ import { API_BASE, API_V1, webhookUrl } from '../config';
 import { Button, Input, Textarea, Select, Field, Badge, Toggle, cn } from '../components/ui';
 
 const nodeTypes = { trigger: TriggerNode, logic: LogicNode, action: ActionNode, ghost: GhostNode };
+const edgeTypes = { deletable: DeletableEdge };
 
 // Stable string signature of the saved parts of an editor (name, active flag,
 // node configs/positions, edges). Used to tell real edits from no-op re-renders
@@ -178,7 +180,7 @@ export default function Editor() {
           setEdges(loadedEdges.map((e: any) => ({
             id: `${e.source}-${e.target}`, source: e.source, target: e.target,
             sourceHandle: e.sourceHandle, targetHandle: e.targetHandle,
-            type: 'smoothstep', animated: true,
+            type: 'deletable', animated: true,
             style: { stroke: 'rgb(var(--c-accent))', strokeWidth: 2 },
           })));
           // Record the just-loaded state as "saved" so we don't autosave it back.
@@ -382,7 +384,7 @@ export default function Editor() {
     }
   };
 
-  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep', animated: true, style: { stroke: 'rgb(var(--c-accent))', strokeWidth: 2 } } as any, eds)), [setEdges]);
+  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, type: 'deletable', animated: true, style: { stroke: 'rgb(var(--c-accent))', strokeWidth: 2 } } as any, eds)), [setEdges]);
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => { setSelectedNode(node); setNodeInspectorTab('config'); }, []);
   const onPaneClick = useCallback(() => setSelectedNode(null), []);
 
@@ -588,6 +590,7 @@ export default function Editor() {
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -881,6 +884,9 @@ export default function Editor() {
                                 <option value="UTC">UTC</option>
                                 <option value="America/New_York">America/New_York</option>
                                 <option value="Europe/London">Europe/London</option>
+                                <option value="Asia/Dubai">Asia/Dubai</option>
+                                <option value="Asia/Kolkata">Asia/Kolkata</option>
+                                <option value="Asia/Singapore">Asia/Singapore</option>
                                 <option value="Asia/Tokyo">Asia/Tokyo</option>
                               </Select>
                             </Field>
@@ -992,6 +998,28 @@ export default function Editor() {
                             <Field label="To"><Input placeholder="{{customer.email}}" value={(nodeData.toAddress as string) || ''} onChange={(e) => updateSelectedNode('toAddress', e.target.value)} /></Field>
                             <Field label="Subject"><Input placeholder="Welcome!" value={(nodeData.subject as string) || ''} onChange={(e) => updateSelectedNode('subject', e.target.value)} /></Field>
                             <Field label="Message" hint="Plain text or HTML. Use {{path}} to insert values."><Textarea rows={5} placeholder="Hi {{customer.name}}, thanks for signing up!" value={(nodeData.emailBody as string) || ''} onChange={(e) => updateSelectedNode('emailBody', e.target.value)} /></Field>
+                            {(() => {
+                              const aiSteps = nodes.filter((n) => n.type === 'action' && (n.data as any)?.actionType === 'ai');
+                              if (aiSteps.length === 0) return null;
+                              return (
+                                <div className="rounded-xl border border-line bg-surface-2 p-3 flex flex-col gap-2">
+                                  <div className="text-xs font-medium text-ink">Insert an AI result</div>
+                                  <div className="text-[11px] text-muted">Click to add it to the message. The AI step must be connected before this one.</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {aiSteps.map((n) => {
+                                      const ph = `{{${n.id}.result}}`;
+                                      return (
+                                        <button key={n.id} title={ph}
+                                          onClick={() => updateSelectedNode('emailBody', `${(nodeData.emailBody as string) || ''}${ph}`)}
+                                          className="px-2 py-1 rounded-md bg-surface border border-line text-[11px] font-mono text-muted hover:text-ink hover:border-accent/40 transition-colors">
+                                          {((n.data as any)?.label as string) || 'AI transform'} · {ph}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </>
                         )}
 
@@ -1008,11 +1036,14 @@ export default function Editor() {
                         {((nodeData.actionType as string) || '') === 'ai' && (
                           <>
                             <Field label="Model" hint="Gemini runs on Google's free tier. Add a GEMINI_API_KEY to enable it.">
-                              <Select value={(nodeData.model as string) || 'gemini-2.0-flash'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
+                              <Select value={(nodeData.model as string) || 'gemini-3.5-flash'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
                                 <optgroup label="Google Gemini (free tier)">
-                                  <option value="gemini-2.0-flash">Gemini 2.0 Flash — fast, free</option>
-                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash — newer</option>
-                                  <option value="gemini-1.5-flash">Gemini 1.5 Flash — legacy</option>
+                                  <option value="gemini-3.5-flash">Gemini 3.5 Flash — fast, free</option>
+                                  <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — cheapest / fastest</option>
+                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                  <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
+                                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                  <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
                                   <option value="gemini-2.5-pro">Gemini 2.5 Pro — most capable</option>
                                 </optgroup>
                                 <optgroup label="Anthropic Claude (needs ANTHROPIC_API_KEY)">
@@ -1022,8 +1053,19 @@ export default function Editor() {
                                 </optgroup>
                               </Select>
                             </Field>
+                            <Field label="Custom model ID (optional)" hint="Override with any exact model id, e.g. a newer Gemini release.">
+                              <Input className="font-mono" placeholder="gemini-3.5-flash" value={(nodeData.model as string) || ''} onChange={(e) => updateSelectedNode('model', e.target.value)} />
+                            </Field>
                             <Field label="Instructions" hint="What the model should do."><Textarea rows={4} placeholder="Summarize the feedback into 3 bullet points." value={(nodeData.systemPrompt as string) || ''} onChange={(e) => updateSelectedNode('systemPrompt', e.target.value)} /></Field>
                             <Field label="Input data" hint="The text to transform. Use {{path}} to pull from the event."><Textarea rows={2} className="font-mono" placeholder="{{feedback_text}}" value={(nodeData.userInput as string) || ''} onChange={(e) => updateSelectedNode('userInput', e.target.value)} /></Field>
+                            <div className="rounded-xl border border-line bg-surface-2 p-3 flex flex-col gap-2">
+                              <div className="text-xs font-medium text-ink">Use this step's output</div>
+                              <div className="text-[11px] text-muted">Paste this into any step connected after this one (e.g. an email message) to insert the AI's answer.</div>
+                              <div className="flex items-center gap-2">
+                                <code className="flex-1 min-w-0 truncate rounded-md border border-line bg-surface px-2 py-1.5 font-mono text-[11px] text-accent">{`{{${selectedNode.id}.result}}`}</code>
+                                <button onClick={() => copyToClipboard(`{{${selectedNode.id}.result}}`, 'Placeholder')} className="text-xs text-accent hover:underline flex items-center gap-1 shrink-0"><Copy size={12} /> Copy</button>
+                              </div>
+                            </div>
                           </>
                         )}
 

@@ -332,9 +332,8 @@ export async function executeWorkflow(
               addLog('success', `[Action] ${nodeName}: HTTP ${res.status} OK`, nodeId);
             } else {
               addLog('warn', `[Action] ${nodeName}: HTTP ${res.status} Error`, nodeId);
-              if (!nodeConfig.retryEnabled) {
-                throw new Error(`HTTP ${res.status}: ${responseText.slice(0, 100)}`);
-              }
+              // A non-2xx response is a failed step regardless of the retry setting.
+              throw new Error(`HTTP ${res.status}: ${responseText.slice(0, 100)}`);
             }
           } catch (err: any) {
             if (err.name === 'AbortError') {
@@ -343,31 +342,9 @@ export async function executeWorkflow(
             throw err;
           }
         } else if (actionType === 'instagram') {
-          const igAction = nodeConfig.action || 'publish_photo';
-          const mediaUrl = interpolate(nodeConfig.mediaUrl || '', incomingPayload);
-          const caption = interpolate(nodeConfig.caption || '', incomingPayload);
-          
-          addLog('info', `[Action] ${nodeName}: Connecting to Instagram (${igAction})`, nodeId);
-          
-          if (igAction === 'publish_photo') {
-            if (!mediaUrl) throw new Error('Instagram Media URL is required');
-            addLog('info', `[Action] ${nodeName}: Publishing photo: ${mediaUrl}`, nodeId);
-            await new Promise(r => setTimeout(r, 1500)); // Simulate API call
-            
-            outputData = {
-              ...incomingPayload,
-              [node.id]: {
-                published: true,
-                platform: 'instagram',
-                postId: `ig_${Math.floor(Math.random() * 1000000)}`,
-                url: mediaUrl,
-                timestamp: new Date().toISOString()
-              }
-            };
-            addLog('success', `[Action] ${nodeName}: Instagram photo published`, nodeId);
-          } else {
-            throw new Error(`Unsupported Instagram action: ${igAction}`);
-          }
+          // The Instagram step was removed (it only ever simulated a post). Fail
+          // clearly instead of pretending an old saved step succeeded.
+          throw new Error('The Instagram step is no longer supported. Remove it from this automation.');
         } else if (actionType === 'email') {
           const toAddress = interpolate(nodeConfig.toAddress || '', incomingPayload);
           const subject = interpolate(nodeConfig.subject || '', incomingPayload);
@@ -602,7 +579,7 @@ export async function executeWorkflow(
 
           if (geminiKey) {
             // Default to a fast, free-tier Gemini model unless the node picked one.
-            const model = (configuredModel && /gemini/i.test(configuredModel)) ? configuredModel : 'gemini-2.0-flash';
+            const model = (configuredModel && /gemini/i.test(configuredModel)) ? configuredModel : 'gemini-3.5-flash';
             addLog('info', `[Action] ${nodeName}: Calling Google ${model}`, nodeId);
 
             const body: any = {

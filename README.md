@@ -8,7 +8,7 @@ It enables users to orchestrate webhooks, conditions, data transformations, and 
 - **Execution Engine**: Reliable, asynchronous job processing backed by BullMQ and Redis.
 - **AI Workflow Generation**: Describe your automation in plain English and let AI generate the workflow graph for you (powered by Google Gemini).
 - **3D Telemetry**: Monitor real-time execution health with a stunning 3D visualizer using React Three Fiber.
-- **Connectors**: Triggers (Webhooks) and Actions (HTTP Requests, Data Transformations, Instagram, Email, Database Sinks).
+- **Connectors**: Triggers (Webhooks) and Actions (HTTP Requests, AI Transformations, Email, Database Sinks).
 
 ## Tech Stack
 - **Frontend**: React, Vite, TailwindCSS, DaisyUI, React Flow, React Three Fiber.

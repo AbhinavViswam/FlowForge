@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import { prisma } from '../db';
-import { executeWorkflow } from '@flowforge/workflow-engine';
+import { workflowQueue } from '../queue';
 
 // Keep track of active consumers
 const activeConsumers = new Map<string, { redis: Redis, running: boolean }>();
@@ -13,7 +13,7 @@ export async function initializeRedisConsumers() {
   setInterval(refreshRedisConsumers, 60000);
 }
 
-async function refreshRedisConsumers() {
+export async function refreshRedisConsumers() {
   const workflows = await prisma.workflow.findMany({
     where: { status: 'active' },
     include: {
@@ -55,6 +55,9 @@ async function refreshRedisConsumers() {
       
       try {
         const redis = new Redis(redisUri);
+        // Register before any await so an overlapping refresh can't start a duplicate.
+        const state = { redis, running: true };
+        activeConsumers.set(consumerKey, state);
         
         // Ensure consumer group exists
         try {
@@ -64,9 +67,6 @@ async function refreshRedisConsumers() {
             console.error(`[Redis] Failed to create group: ${err.message}`);
           }
         }
-
-        const state = { redis, running: true };
-        activeConsumers.set(consumerKey, state);
 
         // Start listening loop
         consumeLoop(workflow, version, definition, state, redisTopic, consumerGroup, consumerName);
@@ -119,35 +119,30 @@ async function consumeLoop(workflow: any, version: any, definition: any, state: 
             }
           });
 
-          const result = await executeWorkflow(definition, eventData);
-          
+          // Hand off to the worker queue (same path as webhooks and schedules) so
+          // the run gets retries, live telemetry and saved email connections.
           const execution = await prisma.execution.create({
             data: {
               workflowVersionId: version.id,
               eventId: event.id,
-              status: result.status,
-              startedAt: startTime,
-              finishedAt: new Date()
+              status: 'queued',
+              startedAt: startTime
             }
           });
 
-          for (const [nodeId, nResult] of Object.entries(result.nodeResults)) {
-            await prisma.nodeExecution.create({
-              data: {
-                executionId: execution.id,
-                nodeId,
-                status: nResult.status,
-                input: nResult.input || {},
-                output: nResult.output || {},
-                error: nResult.error || null,
-                attempts: 1
-              }
-            });
-          }
+          await workflowQueue.add('execute', {
+            executionId: execution.id,
+            workflowVersionId: version.id,
+            eventId: event.id,
+            payload: eventData
+          }, {
+            attempts: 4,
+            backoff: { type: 'exponential', delay: 2000 }
+          });
 
           // Acknowledge message
           await state.redis.xack(topic, group, messageId);
-          console.log(`[Redis] Workflow '${workflow.name}' processed message ${messageId} with status: ${result.status}`);
+          console.log(`[Redis] Workflow '${workflow.name}' queued message ${messageId}`);
         }
       }
     } catch (err) {

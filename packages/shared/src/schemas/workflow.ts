@@ -29,6 +29,10 @@ export const workflowNodeSchema = z.object({
 export const workflowEdgeSchema = z.object({
   source: z.string(),
   target: z.string(),
+  // Which output the edge leaves from ('true' / 'false' on a condition). Must be
+  // kept: without it the engine can't tell the branches apart and runs both.
+  sourceHandle: z.string().nullable().optional(),
+  targetHandle: z.string().nullable().optional(),
 });
 
 export const activateWorkflowSchema = z.object({

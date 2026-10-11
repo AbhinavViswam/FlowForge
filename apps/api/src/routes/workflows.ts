@@ -8,12 +8,13 @@ import {
 import { executeWorkflow, DEFAULT_TEST_PAYLOAD, SmtpCredentials } from '@flowforge/workflow-engine'
 import { decryptSecret } from '../crypto'
 import { reloadCronJobs } from '../scheduler'
+import { refreshRedisConsumers } from '../services/redis-consumer'
 import { workflowQueue } from '../queue'
 import { generateWorkflow } from '../ai'
 
 // Resolve + decrypt the email connections referenced by a definition, scoped to
 // the owning user, so test runs use the same saved accounts the worker would.
-async function resolveConnectionsForUser(definition: any, userId: string): Promise<Record<string, SmtpCredentials>> {
+export async function resolveConnectionsForUser(definition: any, userId: string): Promise<Record<string, SmtpCredentials>> {
   const ids = Array.from(new Set(
     (definition?.nodes || [])
       .map((n: any) => (n?.config || n?.data || {}).connectionId)
@@ -200,6 +201,7 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
     })
     
     reloadCronJobs()
+    refreshRedisConsumers().catch(() => {})
 
     return { version: activated }
   })
@@ -216,6 +218,7 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
       data: { status: 'draft' }
     })
     reloadCronJobs();
+    refreshRedisConsumers().catch(() => {});
     return { success: true }
   })
 

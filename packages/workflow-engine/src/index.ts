@@ -1,5 +1,35 @@
 import { interpolate } from './utils';
 import { evaluateCondition } from '@flowforge/shared';
+import { assertPublicHost, safeFetch } from './network-guard';
+import { openDefinition } from './secrets';
+
+export { assertPublicHost, isPrivateAddress, privateNetworkAllowed, safeFetch } from './network-guard';
+export {
+  encryptSecret, decryptSecret, hasEncryptionKey, openSecret, isSealed,
+  sealDefinition, maskDefinition, openDefinition, SECRET_FIELDS,
+} from './secrets';
+
+// True when a Postgres connection string targets the same server and database as
+// FlowForge's own DATABASE_URL. Used to stop the "Save to database" step from
+// writing into FlowForge's tables (users, connections, workflows...).
+function isFlowForgeDatabase(connectionString: string): boolean {
+  const appUrl = process.env.DATABASE_URL;
+  if (!appUrl) return false;
+  const parse = (s: string) => {
+    try {
+      const u = new URL(s);
+      return { host: u.hostname.replace(/^\[|\]$/g, '').toLowerCase(), port: u.port || '5432', db: decodeURIComponent(u.pathname.replace(/^\//, '')) };
+    } catch {
+      return null;
+    }
+  };
+  const app = parse(appUrl);
+  const target = parse(connectionString);
+  if (!app || !target) return false;
+  const local = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0', 'host.docker.internal']);
+  const sameHost = app.host === target.host || (local.has(app.host) && local.has(target.host));
+  return sameHost && app.port === target.port && app.db === target.db;
+}
 
 export interface WorkflowNodeDef {
   id: string;
@@ -115,6 +145,8 @@ export async function executeWorkflow(
   onNodeComplete?: (res: NodeExecutionResult) => void,
   options?: ExecuteOptions
 ): Promise<WorkflowExecutionResult> {
+  // Saved connection strings are stored encrypted; decrypt them only for this run.
+  definition = openDefinition(definition);
   const connectionCreds = options?.connections || {};
   const startTime = Date.now();
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -309,7 +341,8 @@ export async function executeWorkflow(
             }
             
             const startTime = Date.now();
-            const res = await fetch(url, reqInit);
+            // safeFetch refuses private/internal addresses, including via redirects.
+            const res = await safeFetch(url, reqInit);
             clearTimeout(timeoutId);
             
             const responseText = await res.text();
@@ -362,6 +395,8 @@ export async function executeWorkflow(
           let connFrom = '';
 
           if (savedConn) {
+            // A user-entered SMTP host must be a public server, not something internal.
+            await assertPublicHost(savedConn.host);
             smtpHost = savedConn.host;
             smtpUser = savedConn.user;
             smtpPass = (savedConn.pass || '').replace(/\s+/g, '');
@@ -391,6 +426,16 @@ export async function executeWorkflow(
             (useSmtp ? smtpUser : 'onboarding@resend.dev');
 
           if (!toAddress) throw new Error('Email "To" address is missing');
+          // A placeholder whose field isn't in the event stays as literal "{{...}}"
+          // text, so check every recipient really looks like an email address.
+          const unresolved = toAddress.match(/\{\{[^}]+\}\}/);
+          if (unresolved) {
+            throw new Error(`Email "To" uses ${unresolved[0]}, but the event has no such field`);
+          }
+          const badRecipient = toAddress.split(',').map((a: string) => a.trim()).find((a: string) => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(a));
+          if (badRecipient !== undefined) {
+            throw new Error(`Email "To" address "${badRecipient}" is not a valid email address`);
+          }
           if (!subject) throw new Error('Email subject is missing');
 
           // Treat the body as HTML if it looks like markup, otherwise plain text.
@@ -510,22 +555,19 @@ export async function executeWorkflow(
             throw new Error('No columns to insert — set the Columns (JSON) mapping');
           }
 
-          // Target DB: the node's own connection string, else a dedicated sink DB,
-          // else the app database. Values are always sent as bound parameters.
-          const connectionString =
-            interpolate(nodeConfig.pgUri || '', incomingPayload) ||
-            process.env.SINK_DATABASE_URL ||
-            process.env.DATABASE_URL ||
-            '';
+          // Target DB: only the user's own connection string. There is deliberately no
+          // fallback to FlowForge's database, and the string is used as typed (no
+          // {{placeholders}}) so incoming event data can't redirect where rows go.
+          // Values are always sent as bound parameters.
+          const connectionString = String(nodeConfig.pgUri || '').trim();
+          if (nodeConfig.pgUriError) throw new Error(nodeConfig.pgUriError);
 
           if (!connectionString) {
-            addLog('warn', `[Action] ${nodeName}: No database configured — simulating insert (nothing written)`, nodeId);
-            await new Promise(r => setTimeout(r, 80));
-            outputData = {
-              ...incomingPayload,
-              [node.id]: { persisted: false, simulated: true, table: tableName, insertedData: dataToInsert }
-            };
-            addLog('success', `[Action] ${nodeName}: Simulated insert into '${tableName}'`, nodeId);
+            throw new Error('Add your database connection string to this step (postgres://user:password@host:5432/database)');
+          } else if (!/^postgres(ql)?:\/\//i.test(connectionString) || connectionString.includes('{{')) {
+            throw new Error('The database connection string must be a full postgres://user:password@host:5432/database URL ({{placeholders}} are not allowed here)');
+          } else if (isFlowForgeDatabase(connectionString)) {
+            throw new Error("This connection string points to FlowForge's own database. Use your own database instead.");
           } else {
             let Client: any;
             try { Client = require('pg').Client; }
@@ -538,6 +580,14 @@ export async function executeWorkflow(
             const colList = cols.map(quoteIdent).join(', ');
             const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
             const values = cols.map((c) => dataToInsert[c]);
+
+            // Only a normal network host is allowed: no Unix sockets or ?host= overrides,
+            // and nothing on the server's private network.
+            const dbUrl = new URL(connectionString);
+            if (!dbUrl.hostname || dbUrl.searchParams.has('host') || dbUrl.searchParams.has('hostaddr')) {
+              throw new Error('The database connection string must include a normal host name (sockets and ?host= are not allowed)');
+            }
+            await assertPublicHost(dbUrl.hostname);
 
             const needsSsl = /sslmode=(require|verify-ca|verify-full)/i.test(connectionString);
             const client = new Client({ connectionString, ssl: needsSsl ? { rejectUnauthorized: false } : undefined });

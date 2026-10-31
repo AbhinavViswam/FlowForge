@@ -1,6 +1,17 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../db'
 import { encryptSecret, hasEncryptionKey } from '../crypto'
+import { assertPublicHost } from '@flowforge/workflow-engine'
+
+// The SMTP host is user-supplied, so it must be a public mail server.
+async function checkHost(host: string): Promise<string | null> {
+  try {
+    await assertPublicHost(host)
+    return null
+  } catch (err: any) {
+    return err.message
+  }
+}
 
 // Per-user email/SMTP connections. Secrets (app passwords) are encrypted at rest
 // and NEVER returned to the client — list/get expose only non-secret metadata.
@@ -68,6 +79,8 @@ export default async function connectionRoutes(fastify: FastifyInstance) {
     if (!name) return reply.code(400).send({ error: 'A connection name is required.' })
     if (!meta.username) return reply.code(400).send({ error: 'The account email / SMTP username is required.' })
     if (!password) return reply.code(400).send({ error: 'The app password / SMTP password is required.' })
+    const hostError = await checkHost(meta.host)
+    if (hostError) return reply.code(400).send({ error: hostError })
 
     const created = await prisma.connection.create({
       data: {
@@ -91,6 +104,8 @@ export default async function connectionRoutes(fastify: FastifyInstance) {
     if (!existing) return reply.code(404).send({ error: 'Connection not found.' })
 
     const meta = normalizeMeta({ ...(existing.meta as any), ...body })
+    const hostError = await checkHost(meta.host)
+    if (hostError) return reply.code(400).send({ error: hostError })
     const data: any = {
       name: String(body.name || existing.name).trim(),
       meta: meta as any,

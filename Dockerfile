@@ -1,4 +1,6 @@
 FROM node:20-alpine AS builder
+# Prisma needs OpenSSL to pick the right query engine on Alpine.
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copy package configurations
@@ -18,13 +20,18 @@ COPY . .
 # Generate prisma client (schema lives at the repo root, not in a package)
 RUN npx prisma generate --schema=prisma/schema.prisma
 
-# Build all packages and apps
+# The website needs the public API address at build time (Vite bakes it in).
+ARG VITE_API_URL=http://localhost:3000
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build shared packages first, then the apps that depend on them (see the root build script)
 RUN npm run build
 
 # -------------------------
 # API Image
 # -------------------------
 FROM node:20-alpine AS api
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --from=builder /app ./
 EXPOSE 3000
@@ -34,6 +41,7 @@ CMD ["npm", "run", "start", "-w", "@flowforge/api"]
 # Worker Image
 # -------------------------
 FROM node:20-alpine AS worker
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --from=builder /app ./
 CMD ["npm", "run", "start", "-w", "@flowforge/worker"]

@@ -13,6 +13,11 @@ model User {
   name         String?
   dob          DateTime?
   passwordHash String
+  // Sign-in protection: after too many wrong passwords the account is locked until lockedUntil.
+  failedLogins Int        @default(0)
+  lockedUntil  DateTime?
+  // Sessions issued before this time are rejected (set when the password changes).
+  passwordChangedAt DateTime?
   createdAt    DateTime   @default(now())
   workflows    Workflow[]
   apiKeys      APIKey[]
@@ -136,3 +141,27 @@ model AuditLog {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+
+// A sign-up waiting for email confirmation. The real User row is only created
+// once the 6-digit code is verified, so unconfirmed emails never get an account.
+model PendingSignup {
+  id           String   @id @default(uuid())
+  email        String   @unique // stored lower-cased
+  passwordHash String
+  codeHash     String   // sha256 of the code; the code itself is never stored
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  lastSentAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+// A "forgot password" request: a 6-digit code emailed to the account address.
+model PasswordReset {
+  id         String   @id @default(uuid())
+  email      String   @unique // stored lower-cased
+  codeHash   String   // sha256 of the code; the code itself is never stored
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  lastSentAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}

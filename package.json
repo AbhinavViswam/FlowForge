@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @flowforge/shared && npm run build -w @flowforge/workflow-engine && npm run build -w @flowforge/api -w @flowforge/worker -w @flowforge/web",
     "dev": "concurrently \"npm run dev -w @flowforge/api\" \"npm run dev -w @flowforge/web\" \"npm run dev -w @flowforge/worker\"",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"

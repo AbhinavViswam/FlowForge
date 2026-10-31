@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { useToast } from 'av-toastx';
+import { toast } from 'sonner';
 import {
   Plus, Search, Zap, Activity, CheckCircle2, Workflow as WorkflowIcon,
   Copy, Pencil, Trash2, Sparkles, MousePointerClick, Play, ChevronDown, LogOut, Settings,
@@ -17,7 +17,6 @@ type Filter = 'all' | 'active' | 'draft';
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

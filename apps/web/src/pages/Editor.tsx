@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { useToast } from 'av-toastx';
+import { toast } from 'sonner';
 import '@xyflow/react/dist/style.css';
 import {
   ReactFlow, MiniMap, Controls,
@@ -19,6 +19,7 @@ import LogicNode from '../components/nodes/LogicNode';
 import ActionNode from '../components/nodes/ActionNode';
 import GhostNode from '../components/nodes/GhostNode';
 import DeletableEdge from '../components/edges/DeletableEdge';
+import SecretInput from '../components/SecretInput';
 import Logo from '../components/Logo';
 import WorkflowScene from '../components/WorkflowScene';
 import ThemeToggle from '../components/ThemeToggle';
@@ -81,7 +82,6 @@ export default function Editor() {
   const firstLetter = user?.name ? user.name.charAt(0).toUpperCase() : (user?.email ? user.email.charAt(0).toUpperCase() : 'U');
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -897,7 +897,9 @@ export default function Editor() {
                           <div className="flex flex-col gap-4 p-3 rounded-xl bg-surface-2 border border-line">
                             <Field label="Stream / topic"><Input className="font-mono" placeholder="events:signups" value={(nodeData.redisTopic as string) || ''} onChange={(e) => { updateSelectedNode('redisTopic', e.target.value); updateSelectedNode('subtitle', `Stream: ${e.target.value}`); }} /></Field>
                             <Field label="Consumer group"><Input className="font-mono" placeholder="flowforge-workers" value={(nodeData.redisConsumerGroup as string) || 'flowforge-workers'} onChange={(e) => updateSelectedNode('redisConsumerGroup', e.target.value)} /></Field>
-                            <Field label="Connection URI"><Input type="password" className="font-mono" placeholder="redis://…" value={(nodeData.redisUri as string) || ''} onChange={(e) => updateSelectedNode('redisUri', e.target.value)} /></Field>
+                            <Field label="Connection URI" hint="Stored encrypted. Must be reachable from the internet.">
+                              <SecretInput placeholder="redis://user:password@host:6379" value={(nodeData.redisUri as string) || ''} saved={!!nodeData.redisUriSaved} hint={nodeData.redisUriHint as string} onChange={(v) => updateSelectedNode('redisUri', v)} onRemove={() => updateMultipleNodeData({ redisUri: '', redisUriSaved: false, redisUriHint: '' })} />
+                            </Field>
                           </div>
                         )}
                       </>
@@ -1025,26 +1027,24 @@ export default function Editor() {
 
                         {((nodeData.actionType as string) || '') === 'sink' && (
                           <>
+                            <Field label="Your database (required)" hint="The Postgres database to write to, e.g. from Supabase, Neon or your own server. Stored encrypted. The table must already exist.">
+                              <SecretInput placeholder="postgres://user:pass@host:5432/db?sslmode=require" value={(nodeData.pgUri as string) || ''} saved={!!nodeData.pgUriSaved} hint={nodeData.pgUriHint as string} onChange={(v) => updateSelectedNode('pgUri', v)} onRemove={() => updateMultipleNodeData({ pgUri: '', pgUriSaved: false, pgUriHint: '' })} />
+                            </Field>
                             <Field label="Table" hint="Include the schema if needed, e.g. public.orders."><Input className="font-mono" placeholder="public.orders" value={(nodeData.tableName as string) || ''} onChange={(e) => { updateSelectedNode('tableName', e.target.value); updateSelectedNode('subtitle', `Write to ${e.target.value}`); }} /></Field>
                             <Field label="Columns (JSON)" hint="Map each column to a value. Use {{path}} to pull from the event."><Textarea rows={4} className="font-mono" placeholder='{"email":"{{customer.email}}","amount":"{{amount}}"}' value={(nodeData.dataMapping as string) || ''} onChange={(e) => updateSelectedNode('dataMapping', e.target.value)} /></Field>
-                            <Field label="Connection string (optional)" hint="A Postgres URL to write to. Leave blank to use FlowForge's own database. The table must already exist.">
-                              <Input type="password" className="font-mono" placeholder="postgres://user:pass@host:5432/db?sslmode=require" value={(nodeData.pgUri as string) || ''} onChange={(e) => updateSelectedNode('pgUri', e.target.value)} />
-                            </Field>
                           </>
                         )}
 
                         {((nodeData.actionType as string) || '') === 'ai' && (
                           <>
-                            <Field label="Model" hint="Gemini runs on Google's free tier. Add a GEMINI_API_KEY to enable it.">
+                            <Field label="Model" hint="These Gemini models run on Google's free tier. Pro models need billing enabled; use Custom model ID for those.">
                               <Select value={(nodeData.model as string) || 'gemini-3.5-flash'} onChange={(e) => updateSelectedNode('model', e.target.value)}>
                                 <optgroup label="Google Gemini (free tier)">
-                                  <option value="gemini-3.5-flash">Gemini 3.5 Flash — fast, free</option>
-                                  <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — cheapest / fastest</option>
-                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                  <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
-                                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                                  <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
-                                  <option value="gemini-2.5-pro">Gemini 2.5 Pro — most capable</option>
+                                  <option value="gemini-3.6-flash">Gemini 3.6 Flash — newest</option>
+                                  <option value="gemini-3.5-flash">Gemini 3.5 Flash — default</option>
+                                  <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — fastest</option>
+                                  <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite</option>
+                                  <option value="gemini-flash-lite-latest">Gemini Flash-Lite (always latest)</option>
                                 </optgroup>
                                 <optgroup label="Anthropic Claude (needs ANTHROPIC_API_KEY)">
                                   <option value="claude-opus-5">Claude Opus 5 — most capable</option>

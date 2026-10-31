@@ -1,6 +1,9 @@
 node_modules
 dist
-.env
+# Local env files hold secrets and dev-only switches: never bake them into images.
+**/.env
+**/.env.*
+!**/.env.example
 .git
 .gitignore
 README.md
@@ -9,3 +12,6 @@ apps/*/dist
 packages/*/node_modules
 packages/*/dist
 
+
+# TypeScript incremental build info: a stale copy makes tsc skip emitting dist/
+**/*.tsbuildinfo

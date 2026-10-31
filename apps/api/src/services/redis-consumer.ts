@@ -1,6 +1,14 @@
 import Redis from 'ioredis';
 import { prisma } from '../db';
 import { workflowQueue } from '../queue';
+import { assertPublicHost, openSecret } from '@flowforge/workflow-engine';
+
+const undecryptable = new Set<string>(); // warn once per workflow
+
+// Consumers whose host check is in progress, and ones already reported as blocked
+// (so a refused URI is logged once, not every minute).
+const startingConsumers = new Set<string>();
+const blockedConsumers = new Set<string>();
 
 // Keep track of active consumers
 const activeConsumers = new Map<string, { redis: Redis, running: boolean }>();
@@ -40,19 +48,39 @@ export async function refreshRedisConsumers() {
 
     if (triggerType !== 'redis') continue;
 
-    const redisUri = config.redisUri;
+    // Stored encrypted; decrypt only to connect. An unreadable value counts as missing.
+    let redisUri = '';
+    try { redisUri = openSecret(config.redisUri); } catch { if (!undecryptable.has(workflow.id)) { undecryptable.add(workflow.id); console.warn(`[Redis] Could not decrypt the connection URI for workflow '${workflow.name}' (was ENCRYPTION_KEY changed?)`); } }
     const redisTopic = config.redisTopic || 'events';
     const consumerGroup = config.redisConsumerGroup || 'flowforge-workers';
-    const consumerName = `worker-${process.pid}`;
+    // Stable name (not the process id) so messages left unacknowledged before an
+    // API restart are replayed by the next consumer instead of being stranded.
+    const consumerName = `flowforge-${workflow.id}`;
     
     if (!redisUri) continue; // Skip if no connection URI provided
 
     const consumerKey = `${workflow.id}_${version.id}_${redisTopic}_${consumerGroup}`;
     currentConsumerIds.add(consumerKey);
 
-    if (!activeConsumers.has(consumerKey)) {
+    if (!activeConsumers.has(consumerKey) && !startingConsumers.has(consumerKey)) {
+      // The Redis server is user-supplied: refuse anything on the private network.
+      startingConsumers.add(consumerKey);
+      try {
+        let host = '';
+        try { host = new URL(redisUri).hostname; } catch { throw new Error('Invalid Redis connection URI (expected redis://host:port)'); }
+        await assertPublicHost(host);
+      } catch (err: any) {
+        if (!blockedConsumers.has(consumerKey)) {
+          blockedConsumers.add(consumerKey);
+          console.warn(`[Redis] Not starting consumer for workflow '${workflow.name}': ${err.message}`);
+        }
+        continue;
+      } finally {
+        startingConsumers.delete(consumerKey);
+      }
+
       console.log(`[Redis] Starting consumer for workflow '${workflow.name}' on stream '${redisTopic}'`);
-      
+
       try {
         const redis = new Redis(redisUri);
         // Register before any await so an overlapping refresh can't start a duplicate.
@@ -82,16 +110,27 @@ export async function refreshRedisConsumers() {
     if (!currentConsumerIds.has(key)) {
       console.log(`[Redis] Stopping removed/modified consumer ${key}`);
       state.running = false;
-      state.redis.quit();
+      // disconnect (not quit) aborts a blocking read right away, so a stopped
+      // consumer cannot pick up one more message after the trigger is switched off.
+      state.redis.disconnect();
       activeConsumers.delete(key);
     }
   }
 }
 
 async function consumeLoop(workflow: any, version: any, definition: any, state: { redis: Redis, running: boolean }, topic: string, group: string, name: string) {
+  // Start by re-reading messages this consumer received earlier but never
+  // acknowledged ('0'), e.g. one that arrived as the trigger was being stopped;
+  // once that backlog is empty, switch to new messages ('>').
+  let cursor = '0';
   while (state.running) {
     try {
-      const results = await (state.redis as any).xreadgroup('GROUP', group, name, 'BLOCK', 5000, 'COUNT', 1, 'STREAMS', topic, '>');
+      const results = await (state.redis as any).xreadgroup('GROUP', group, name, 'BLOCK', 5000, 'COUNT', 1, 'STREAMS', topic, cursor);
+      if (!state.running) break; // stopped while waiting: leave it pending for next start
+      if (cursor === '0' && (!results || !results[0] || results[0][1].length === 0)) {
+        cursor = '>';
+        continue;
+      }
       if (results && results.length > 0) {
         const [stream, messages] = results[0];
         

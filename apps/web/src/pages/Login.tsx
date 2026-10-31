@@ -51,7 +51,11 @@ export default function Login() {
               <Input type="email" autoComplete="email" placeholder="you@company.com" {...register('email')} />
             </Field>
 
-            <Field label="Password" error={errors.password?.message}>
+            <Field
+              label="Password"
+              action={<Link to="/forgot-password" className="text-xs font-medium text-accent hover:underline">Forgot password?</Link>}
+              error={errors.password?.message}
+            >
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}

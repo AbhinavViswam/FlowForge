@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useToast } from 'av-toastx';
+import { toast } from 'sonner';
 import { Mail, Plus, Trash2, ShieldCheck, ChevronDown } from 'lucide-react';
 import { API_V1 } from '../config';
 import { Button, Input, Field, Card, Select, Toggle, Badge } from './ui';
@@ -18,7 +18,6 @@ type Conn = {
 const EMPTY = { name: '', username: '', password: '', host: 'smtp.gmail.com', port: 587, secure: false, fromAddress: '' };
 
 export default function Connections() {
-  const { toast } = useToast();
   const [list, setList] = useState<Conn[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ ...EMPTY });

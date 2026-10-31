@@ -1,4 +1,11 @@
 import 'dotenv/config';
+
+import { checkSecretsAtStartup } from '@flowforge/shared';
+
+// Stop here in production if any secret is missing, short or a placeholder.
+const secretCheck = checkSecretsAtStartup('worker', process.env, process.env.NODE_ENV === 'production');
+if (secretCheck.message) (secretCheck.fatal ? console.error : console.warn)(secretCheck.message);
+if (secretCheck.fatal) process.exit(1);
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import { prisma } from './db';

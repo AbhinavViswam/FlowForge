@@ -1,4 +1,12 @@
 import 'dotenv/config';
+
+import { checkSecretsAtStartup } from '@flowforge/shared'
+
+// Stop here in production if any secret is missing, short or a placeholder.
+const secretCheck = checkSecretsAtStartup('api', process.env, process.env.NODE_ENV === 'production')
+if (secretCheck.message) (secretCheck.fatal ? console.error : console.warn)(secretCheck.message)
+if (secretCheck.fatal) process.exit(1)
+
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import authPlugin from './plugins/auth'
@@ -8,12 +16,27 @@ import webhookRoutes from './routes/webhooks'
 import connectionRoutes from './routes/connections'
 import { initScheduler } from './scheduler'
 import { initializeRedisConsumers } from './services/redis-consumer'
+import { verifyMailConfig } from './mailer'
+import { configuredOrigins, isAllowedOrigin, isPublicWebhookPath } from './origins'
 
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import { registerErrorHandler, rateLimitResponse } from './errors';
+
+// Behind a load balancer or reverse proxy (Render, Nginx, Cloudflare...), set
+// TRUST_PROXY so rate limits see each visitor's real IP instead of the proxy's.
+// "true" trusts any proxy, a number trusts that many hops, or list proxy IPs.
+function trustProxySetting(): boolean | string | ((address: string, hop: number) => boolean) {
+  const raw = String(process.env.TRUST_PROXY || '').trim()
+  if (!raw || /^(0|false|no)$/i.test(raw)) return false
+  if (/^(true|yes)$/i.test(raw)) return true
+  if (/^\d+$/.test(raw)) { const hops = Number(raw); return (_address, hop) => hop < hops }
+  return raw
+}
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
+  trustProxy: trustProxySetting(),
 })
 
 fastify.register(helmet, {
@@ -24,28 +47,44 @@ fastify.register(helmet, {
 
 fastify.register(rateLimit, {
   max: 100,
-  timeWindow: '1 minute'
+  timeWindow: '1 minute',
+  // Sign-in and sign-up routes set tighter limits of their own (routes/auth.ts).
+  errorResponseBuilder: rateLimitResponse,
 });
 
-// Allow the dev UI plus any locally-served/opened tool (e.g. the webhook tester)
-// to call the API from a browser. We accept any localhost/127.0.0.1 origin (any
-// port) and file:// pages (origin is undefined/null), but nothing off-machine —
-// so credentialed cookie requests stay limited to local origins.
-const isLocalOrigin = (origin?: string) => {
-  if (!origin) return true // non-browser clients or file:// pages
-  try {
-    const { hostname } = new URL(origin)
-    return hostname === 'localhost' || hostname === '127.0.0.1'
-  } catch {
-    return false
-  }
-}
+registerErrorHandler(fastify);
 
+// Browser access rules (see origins.ts): the app's own websites (CORS_ORIGINS, plus
+// localhost in development) get logged-in access; public webhook URLs accept
+// posts from any website but never with the login cookie.
 fastify.register(cors, {
-  origin: (origin, cb) => cb(null, isLocalOrigin(origin)),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+  delegator: (req, cb) => {
+    if (isPublicWebhookPath(req.url || '')) {
+      return cb(null, { origin: '*', credentials: false, methods: ['GET', 'POST', 'OPTIONS'] })
+    }
+    cb(null, {
+      origin: isAllowedOrigin(req.headers.origin),
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    })
+  },
 })
+
+// Cross-site request protection: CORS only stops other websites from *reading*
+// responses. A plain HTML form on another site can still *send* a request, so
+// refuse state-changing requests whose Origin isn't one of ours.
+fastify.addHook('onRequest', async (request, reply) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return
+  if (isPublicWebhookPath(request.url)) return
+  const origin = request.headers.origin
+  if (origin && !isAllowedOrigin(origin)) {
+    return reply.code(403).send({ error: 'Requests from this website are not allowed.' })
+  }
+})
+
+if (process.env.NODE_ENV === 'production' && configuredOrigins().length === 0) {
+  console.error('[CORS] CORS_ORIGINS is not set: the website will not be able to sign in or call the API.')
+}
 
 // Parse JSON but retain the exact raw bytes on request.rawBody, so webhook HMAC
 // signatures are verified against what the sender actually signed (re-serializing
@@ -98,6 +137,8 @@ fastify.get('/', async function handler (request, reply) {
 try {
   initScheduler(); // Start the cron background jobs
   initializeRedisConsumers().catch(err => console.error('[Redis] Consumer init failed', err)); // Redis-stream triggers
+  // Report (and test) the sign-up email sender at startup so a bad password shows up now.
+  verifyMailConfig().then(({ ok, message }) => (ok ? console.log : console.error)(`[Mailer] ${message}`));
   fastify.listen({ port: 3000, host: '0.0.0.0' }, (err, address) => {
     if (err) throw err;
     console.log(`Server listening at ${address}`);
@@ -107,7 +148,7 @@ try {
 
     const io = new Server(fastify.server, {
       cors: {
-        origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, isLocalOrigin(origin)),
+        origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, isAllowedOrigin(origin)),
         methods: ["GET", "POST"],
         credentials: true
       }

@@ -107,18 +107,26 @@ export function Field({
   label,
   hint,
   error,
+  action,
   children,
   className,
 }: {
   label?: string;
   hint?: string;
+  /** Shown at the right end of the label row, e.g. a "Forgot password?" link. */
+  action?: React.ReactNode;
   error?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      {label && <label className="text-[13px] font-medium text-ink">{label}</label>}
+      {label && (action ? (
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-[13px] font-medium text-ink">{label}</label>
+          {action}
+        </div>
+      ) : <label className="text-[13px] font-medium text-ink">{label}</label>)}
       {children}
       {error ? (
         <p className="text-xs text-danger">{error}</p>

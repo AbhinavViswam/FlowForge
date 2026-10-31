@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from 'av-toastx';
+import { toast } from 'sonner';
 import { ArrowLeft, User, Lock, LogOut } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
@@ -11,7 +11,6 @@ import { Button, Input, Field, Card } from '../components/ui';
 export default function Account() {
   const { user, logout, updateProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [name, setName] = useState(user?.name || '');
   const [dob, setDob] = useState(user?.dob ? new Date(user.dob).toISOString().split('T')[0] : '');

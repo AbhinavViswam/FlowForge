@@ -21,7 +21,13 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (data: LoginInput) => Promise<void>;
-  register: (data: RegisterInput) => Promise<void>;
+  // Starts sign-up and emails a 6-digit code; the account exists only after verifyEmail.
+  register: (data: RegisterInput) => Promise<{ email: string; cooldownSeconds: number }>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  resendCode: (email: string) => Promise<{ cooldownSeconds: number }>;
+  // Forgot password: emails a 6-digit code, then resetPassword sets the new password and signs in.
+  forgotPassword: (email: string) => Promise<{ email: string; cooldownSeconds: number }>;
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: { name?: string, dob?: string }) => Promise<void>;
   updatePassword: (data: { currentPassword?: string, newPassword?: string }) => Promise<void>;
@@ -47,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // If we are on login/signup or root, and we are authenticated, redirect to dashboard
       const path = window.location.pathname;
-      if (path === '/login' || path === '/signup') {
+      if (path === '/login' || path === '/signup' || path === '/forgot-password') {
         navigate('/dashboard');
       }
     } catch (error) {
@@ -64,7 +70,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (data: RegisterInput) => {
-    await api.post('/auth/register', data);
+    const res = await api.post('/auth/register', data);
+    return { email: res.data.email as string, cooldownSeconds: Number(res.data.cooldownSeconds) || 60 };
+  };
+
+  const verifyEmail = async (email: string, code: string) => {
+    await api.post('/auth/verify-email', { email, code });
+    await checkAuth();
+    navigate('/dashboard');
+  };
+
+  const resendCode = async (email: string) => {
+    const res = await api.post('/auth/resend-code', { email });
+    return { cooldownSeconds: Number(res.data.cooldownSeconds) || 60 };
+  };
+
+  const forgotPassword = async (email: string) => {
+    const res = await api.post('/auth/forgot-password', { email });
+    return { email: (res.data.email as string) || email, cooldownSeconds: Number(res.data.cooldownSeconds) || 60 };
+  };
+
+  const resetPassword = async (email: string, code: string, password: string) => {
+    await api.post('/auth/reset-password', { email, code, password });
     await checkAuth();
     navigate('/dashboard');
   };
@@ -85,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateProfile, updatePassword }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, verifyEmail, resendCode, forgotPassword, resetPassword, logout, updateProfile, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

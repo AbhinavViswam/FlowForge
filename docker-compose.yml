@@ -5,10 +5,12 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: flowforge
-      POSTGRES_PASSWORD: flowforge_password
+      # Required: set POSTGRES_PASSWORD in the .env file next to this compose file.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: flowforge
+    # Only reachable from this machine, never from the internet.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +21,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Redis has no password: keep it reachable only from this machine.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   api:
     build:
@@ -29,16 +32,29 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://flowforge:flowforge_password@db:5432/flowforge
+      - DATABASE_URL=postgresql://flowforge:${POSTGRES_PASSWORD}@db:5432/flowforge
+      # "production" turns on the safety checks and Secure (HTTPS-only) login cookies.
+      - NODE_ENV=${NODE_ENV:-production}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JWT_SECRET=super-secret-key-change-in-production
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-byte-min-encryption-key}
-      - SINK_DATABASE_URL=${SINK_DATABASE_URL:-}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      # Websites allowed to sign in and call the API (comma-separated).
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080}
+      # Set to "none" only if the website and API are on different domains (needs HTTPS).
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
+      - TRUST_PROXY=${TRUST_PROXY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-onboarding@resend.dev}
+      - GMAIL_USER=${GMAIL_USER:-}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_SECURE=${SMTP_SECURE:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -52,17 +68,23 @@ services:
       context: .
       target: worker
     environment:
-      - DATABASE_URL=postgresql://flowforge:flowforge_password@db:5432/flowforge
+      - DATABASE_URL=postgresql://flowforge:${POSTGRES_PASSWORD}@db:5432/flowforge
+      # "production" turns on the safety checks and Secure (HTTPS-only) login cookies.
+      - NODE_ENV=${NODE_ENV:-production}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-byte-min-encryption-key}
-      - SINK_DATABASE_URL=${SINK_DATABASE_URL:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-onboarding@resend.dev}
       - GMAIL_USER=${GMAIL_USER:-}
       - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_SECURE=${SMTP_SECURE:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +95,9 @@ services:
     build:
       context: .
       target: web
+      args:
+        # Public address of the API as seen from visitors' browsers.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
     ports:
       - "8080:80"
 

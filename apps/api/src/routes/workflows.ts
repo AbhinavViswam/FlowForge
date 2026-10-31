@@ -5,7 +5,7 @@ import {
   updateWorkflowSchema, 
   activateWorkflowSchema 
 } from '@flowforge/shared'
-import { executeWorkflow, DEFAULT_TEST_PAYLOAD, SmtpCredentials } from '@flowforge/workflow-engine'
+import { executeWorkflow, DEFAULT_TEST_PAYLOAD, SmtpCredentials, sealDefinition, maskDefinition } from '@flowforge/workflow-engine'
 import { decryptSecret } from '../crypto'
 import { reloadCronJobs } from '../scheduler'
 import { refreshRedisConsumers } from '../services/redis-consumer'
@@ -130,6 +130,8 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
     })
     
     if (!workflow) return reply.code(404).send({ error: 'Workflow not found' })
+    // Connection strings are stored encrypted and never sent back to the browser.
+    workflow.versions = workflow.versions.map((v) => ({ ...v, definition: maskDefinition(v.definition) }))
     return { workflow }
   })
 
@@ -181,7 +183,9 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
         data: {
           workflowId: id,
           version: nextVersion,
-          definition: definition as any
+          // New connection strings are encrypted; ones left blank but marked as
+          // saved are carried over (still encrypted) from the previous version.
+          definition: sealDefinition(definition, lastVersion?.definition) as any
         }
       })
       
@@ -203,7 +207,7 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
     reloadCronJobs()
     refreshRedisConsumers().catch(() => {})
 
-    return { version: activated }
+    return { version: { ...activated, definition: maskDefinition(activated.definition) } }
   })
 
   fastify.post('/:id/deactivate', async (request, reply) => {
@@ -318,6 +322,11 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
           definition = workflow.versions[0].definition
         }
       }
+    }
+    // The canvas sends saved connection strings as blank + "saved"; fill them in
+    // from the stored version (the engine decrypts them for this run only).
+    if (body.definition) {
+      definition = sealDefinition(body.definition, workflow?.versions?.[0]?.definition)
     }
 
     if (!definition || !definition.nodes || !Array.isArray(definition.nodes)) {

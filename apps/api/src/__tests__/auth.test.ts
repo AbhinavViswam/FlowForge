@@ -61,7 +61,7 @@ function resetDatabase() {
 }
 resetDatabase()
 
-const sentEmails: Array<{ to: string; subject: string }> = []
+const sentEmails: Array<{ to: string; subject: string; text: string }> = []
 vi.mock('../db', () => ({ prisma: fakePrisma }))
 vi.mock('../mailer', () => ({
   sendSystemEmail: vi.fn(async (mail: any) => { sentEmails.push(mail); return { delivered: true, provider: 'log' } }),
@@ -90,7 +90,7 @@ async function addUser(email = EMAIL, password = PASSWORD) {
 const post = (app: FastifyInstance, url: string, payload: any, cookie?: string) =>
   app.inject({ method: 'POST', url, payload, headers: cookie ? { cookie } : {} })
 const sessionCookie = (res: any) => String(res.headers['set-cookie'] || '').split(';')[0]
-const lastCode = () => sentEmails[sentEmails.length - 1]?.subject.match(/^(\d{6})/)?.[1] || ''
+const lastCode = () => sentEmails[sentEmails.length - 1]?.text.match(/\b(\d{6})\b/)?.[1] || ''
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 beforeEach(() => {

@@ -64,7 +64,7 @@ function sendCodeEmail(email: string, code: string, purpose: 'signup' | 'reset')
     : "If you didn't ask to reset your password, you can ignore this email. Your password won't change."
   return sendSystemEmail({
     to: email,
-    subject: signup ? `${code} is your FlowForge confirmation code` : `${code} is your FlowForge password reset code`,
+    subject: signup ? 'Confirm your email — FlowForge' : `${code} is your FlowForge password reset code`,
     text: `${intro} ${code}. It expires in 10 minutes. ${ignore}`,
     html: `<div style="font-family:system-ui,sans-serif;max-width:420px">
       <h2 style="margin:0 0 8px">${heading}</h2>

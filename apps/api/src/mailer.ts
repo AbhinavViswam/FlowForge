@@ -1,15 +1,20 @@
 // System email (account emails such as sign-up codes), separate from the
 // per-user connections that automations send through.
 //
-// Provider order: SMTP/Gmail (SMTP_* or GMAIL_* env) -> Resend (RESEND_API_KEY).
+// Provider order: Brevo (BREVO_API_KEY) -> SMTP/Gmail (SMTP_* or GMAIL_* env) -> Resend
+// (RESEND_API_KEY). Brevo and Resend send over HTTPS, so they also work on hosts
+// that block SMTP ports (such as Render's free plan).
 // With neither configured, development prints the email to the server log and
 // production refuses to send (so sign-ups fail loudly instead of silently).
 
+import { sendBrevoEmail, checkBrevoKey } from '@flowforge/workflow-engine';
+
 type SystemEmail = { to: string; subject: string; text: string; html?: string };
-export type SendResult = { delivered: boolean; provider: 'smtp' | 'resend' | 'log' };
+export type SendResult = { delivered: boolean; provider: 'brevo' | 'smtp' | 'resend' | 'log' };
 
 type SmtpConfig = { host: string; port: number; secure: boolean; user: string; pass: string };
 export type MailConfig =
+  | { kind: 'brevo'; from: string; apiKey: string }
   | { kind: 'smtp'; from: string; smtp: SmtpConfig }
   | { kind: 'resend'; from: string; apiKey: string }
   | { kind: 'none' };
@@ -17,6 +22,9 @@ export type MailConfig =
 const isProduction = () => process.env.NODE_ENV === 'production';
 
 export function getMailConfig(): MailConfig {
+  if (process.env.BREVO_API_KEY) {
+    return { kind: 'brevo', from: process.env.EMAIL_FROM || '', apiKey: process.env.BREVO_API_KEY };
+  }
   const host = process.env.SMTP_HOST || (process.env.GMAIL_USER ? 'smtp.gmail.com' : '');
   const user = process.env.SMTP_USER || process.env.GMAIL_USER || '';
   // App Passwords are shown grouped as "abcd efgh ijkl mnop"; strip the spaces.
@@ -49,6 +57,11 @@ function smtpTransport(smtp: SmtpConfig) {
 export async function sendSystemEmail(mail: SystemEmail): Promise<SendResult> {
   const config = getMailConfig();
 
+  if (config.kind === 'brevo') {
+    await sendBrevoEmail({ apiKey: config.apiKey, from: config.from, to: [mail.to], subject: mail.subject, text: mail.text, html: mail.html });
+    return { delivered: true, provider: 'brevo' };
+  }
+
   if (config.kind === 'smtp') {
     await smtpTransport(config.smtp).sendMail({ from: config.from, to: mail.to, subject: mail.subject, text: mail.text, html: mail.html });
     return { delivered: true, provider: 'smtp' };
@@ -65,11 +78,11 @@ export async function sendSystemEmail(mail: SystemEmail): Promise<SendResult> {
   }
 
   if (isProduction()) {
-    throw new Error('No email provider configured (set GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY)');
+    throw new Error('No email provider configured (set BREVO_API_KEY + EMAIL_FROM, GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY)');
   }
   // Development only: print it so sign-up can still be tested locally.
   console.log(
-    `\n[Mailer] No email provider configured (set GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY).\n` +
+    `\n[Mailer] No email provider configured (set BREVO_API_KEY + EMAIL_FROM, GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY).\n` +
     `[Mailer] To: ${mail.to}\n[Mailer] Subject: ${mail.subject}\n[Mailer] ${mail.text}\n`
   );
   return { delivered: false, provider: 'log' };
@@ -83,8 +96,15 @@ export async function verifyMailConfig(): Promise<{ ok: boolean; message: string
   const config = getMailConfig();
   if (config.kind === 'none') {
     return isProduction()
-      ? { ok: false, message: 'No email provider configured. Sign-ups WILL FAIL: set GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY.' }
+      ? { ok: false, message: 'No email provider configured. Sign-ups WILL FAIL: set BREVO_API_KEY + EMAIL_FROM, GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY.' }
       : { ok: true, message: 'No email provider configured: sign-up codes will be printed in this log (development only).' };
+  }
+  if (config.kind === 'brevo') {
+    if (!config.from) return { ok: false, message: 'BREVO_API_KEY is set but EMAIL_FROM is empty: set it to a sender verified in Brevo. Sign-ups WILL FAIL.' };
+    const check = await checkBrevoKey(config.apiKey);
+    return check.ok
+      ? { ok: true, message: `Sign-up emails will be sent via Brevo as ${config.from}.` }
+      : { ok: false, message: `${check.message}. Sign-ups WILL FAIL.` };
   }
   if (config.kind === 'smtp') {
     try {

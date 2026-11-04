@@ -195,7 +195,8 @@ export default function Editor() {
 
   useEffect(() => {
     if (!id || id === 'new') return;
-    const socket = io(`${API_BASE}`, { withCredentials: true });
+    // No address = connect to the site this page came from.
+    const socket = API_BASE ? io(API_BASE, { withCredentials: true }) : io({ withCredentials: true });
     socket.on('connect', () => { socket.emit('join_workflow', id); });
     socket.on('workflow_event', (event) => {
       setActiveEvent(event);
@@ -970,11 +971,11 @@ export default function Editor() {
 
                         {((nodeData.actionType as string) || '') === 'email' && (
                           <>
-                            <Field label="Send from" hint="Pick a saved Gmail/SMTP account. Manage these in Account → Connections.">
+                            <Field label="Send from" hint="Pick a saved Gmail, SMTP or Brevo account. Manage these in Account → Connections.">
                               <Select value={(nodeData.connectionId as string) || ''} onChange={(e) => updateSelectedNode('connectionId', e.target.value)}>
                                 <option value="">Server default (environment settings)</option>
                                 {connections.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.name}{c.username ? ` — ${c.username}` : ''}</option>
+                                  <option key={c.id} value={c.id}>{c.name} — {c.type === 'brevo' ? `Brevo, from ${c.fromAddress}` : c.username}</option>
                                 ))}
                               </Select>
                             </Field>

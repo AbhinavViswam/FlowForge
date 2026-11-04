@@ -12,7 +12,6 @@
     { "path": "packages/shared" },
     { "path": "packages/workflow-engine" },
     { "path": "apps/api" },
-    { "path": "apps/worker" },
     { "path": "apps/web" }
   ]
 }

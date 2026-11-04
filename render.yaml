@@ -1,0 +1,38 @@
+# Render Blueprint: one free web service running all of FlowForge (API, workflow
+# runner and website). The database is external (e.g. Supabase free Postgres).
+#
+# In Render: New > Blueprint > pick this repo. Render asks for every value marked
+# "sync: false" below. See DEPLOY.md for where each value comes from.
+
+services:
+  - type: web
+    name: flowforge
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render sits in front of the app; count sign-in limits by the visitor's real IP.
+      - key: TRUST_PROXY
+        value: "true"
+      # Supabase "Session pooler" connection string, with ?sslmode=require&connection_limit=5
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      # Keep a copy of this somewhere safe: without it, saved passwords and
+      # connection strings can't be decrypted.
+      - key: ENCRYPTION_KEY
+        sync: false
+      # Sign-up and password-reset emails. Render's free plan blocks SMTP (Gmail),
+      # so FlowForge sends through Brevo's HTTPS API instead.
+      - key: BREVO_API_KEY
+        sync: false
+      # A sender verified in Brevo, e.g. "FlowForge <you@example.com>"
+      - key: EMAIL_FROM
+        sync: false
+      # AI transform step
+      - key: GEMINI_API_KEY
+        sync: false

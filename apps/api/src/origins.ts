@@ -11,7 +11,23 @@
 const normalize = (origin: string) => origin.trim().replace(/\/+$/, '').toLowerCase();
 
 export function configuredOrigins(): string[] {
-  return String(process.env.CORS_ORIGINS || '').split(',').map(normalize).filter(Boolean);
+  // PUBLIC_URL is this app's own address; Render sets RENDER_EXTERNAL_URL automatically.
+  const list = [process.env.CORS_ORIGINS, process.env.PUBLIC_URL, process.env.RENDER_EXTERNAL_URL].join(',');
+  return list.split(',').map(normalize).filter(Boolean);
+}
+
+/**
+ * True when the request comes from a page on this same server (the website is
+ * served from here). Browsers always send the real Origin, and another site
+ * can't make a browser send our Host header with its own Origin.
+ */
+export function isSameHostOrigin(origin: string | undefined, host: string | undefined): boolean {
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host.toLowerCase() === host.toLowerCase();
+  } catch {
+    return false;
+  }
 }
 
 const isProduction = () => process.env.NODE_ENV === 'production';

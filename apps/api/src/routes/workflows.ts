@@ -26,6 +26,10 @@ export async function resolveConnectionsForUser(definition: any, userId: string)
   for (const row of rows) {
     try {
       const meta = (row.meta || {}) as any
+      if (row.type === 'brevo') {
+        map[row.id] = { provider: 'brevo', host: '', port: 0, secure: true, user: '', pass: decryptSecret(row.secret), from: meta.fromAddress || '' }
+        continue
+      }
       map[row.id] = {
         host: meta.host || 'smtp.gmail.com',
         port: meta.port || (meta.secure ? 465 : 587),

@@ -4,7 +4,7 @@ import { executeWorkflow } from '@flowforge/workflow-engine'
 // How automations run: condition branches, data placeholders, and the checks
 // on the email and "Save to database" steps.
 
-const MAIL_VARS = ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'RESEND_API_KEY']
+const MAIL_VARS = ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'RESEND_API_KEY', 'BREVO_API_KEY', 'EMAIL_FROM']
 const saved: Record<string, string | undefined> = {}
 beforeEach(() => {
   // No mail settings, so email steps run in simulation and send nothing.

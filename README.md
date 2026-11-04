@@ -1,88 +1,74 @@
 # FlowForge
 
-FlowForge is an event-driven automation platform built for multi-region serverless environments. 
-It enables users to orchestrate webhooks, conditions, data transformations, and HTTP integrations via a powerful visual node editor.
+FlowForge is an event-driven automation platform. It lets you connect webhooks, schedules and events to conditions, data transformations, HTTP calls, emails and database writes in a visual node editor.
 
 ## Features
 - **Visual Editor**: Node-based workflow builder (powered by React Flow).
-- **Execution Engine**: Reliable, asynchronous job processing backed by BullMQ and Redis.
+- **Execution Engine**: Asynchronous runs with automatic retries, using a job queue stored in PostgreSQL (pg-boss). No Redis needed.
 - **AI Workflow Generation**: Describe your automation in plain English and let AI generate the workflow graph for you (powered by Google Gemini).
-- **3D Telemetry**: Monitor real-time execution health with a stunning 3D visualizer using React Three Fiber.
-- **Connectors**: Triggers (Webhooks) and Actions (HTTP Requests, AI Transformations, Email, Database Sinks).
+- **3D Telemetry**: Monitor real-time execution health with a 3D visualizer using React Three Fiber.
+- **Connectors**: Triggers (Webhooks, Schedules, Redis streams) and Actions (HTTP Requests, AI Transformations, Email, Database writes).
 
 ## Tech Stack
-- **Frontend**: React, Vite, TailwindCSS, DaisyUI, React Flow, React Three Fiber.
+- **Frontend**: React, Vite, TailwindCSS, React Flow, React Three Fiber.
 - **Backend**: Fastify, TypeScript, Prisma, PostgreSQL.
-- **Job Queue**: BullMQ, Redis.
-- **Infrastructure**: Docker, Docker Compose.
+- **Job Queue**: pg-boss (PostgreSQL).
+- **Infrastructure**: Docker; one service plus a PostgreSQL database.
 
 ## Getting Started (Local Development)
 
 ### Prerequisites
-- Node.js v20+
-- Docker & Docker Compose (for PostgreSQL and Redis)
+- Node.js v22+
+- A PostgreSQL database (for example `docker compose up -d db`, which needs `POSTGRES_PASSWORD` in the root `.env`)
 
 ### Setup
 
-1. **Install Dependencies**
-   \`\`\`bash
+1. **Install dependencies**
+   ```bash
    npm install
-   \`\`\`
+   ```
 
-2. **Start Infrastructure (DB & Redis)**
-   \`\`\`bash
-   docker-compose up -d db redis
-   \`\`\`
+2. **Configure environment variables**
+   Copy `apps/api/.env.example` to `apps/api/.env` and fill it in.
 
-3. **Configure Environment Variables**
-   Create `.env` files in `apps/api` and `apps/worker` with your database and redis connection strings.
-
-4. **Run Database Migrations**
-   \`\`\`bash
+3. **Run database migrations**
+   ```bash
    npx prisma migrate deploy --schema=prisma/schema.prisma
-   \`\`\`
+   ```
    (On a database that already has the tables from an earlier run, baseline it once with
-   \`npx prisma migrate resolve --applied 0_init --schema=prisma/schema.prisma\`.)
+   `npx prisma migrate resolve --applied 0_init --schema=prisma/schema.prisma`.)
 
-5. **Start the Development Servers**
-   \`\`\`bash
+4. **Start the development servers**
+   ```bash
    npm run dev
-   \`\`\`
-   This will start the Web UI (`http://localhost:5173`), API server (`http://localhost:3000`), and Worker pool concurrently.
+   ```
+   This starts the Web UI (http://localhost:5173) and the API (http://localhost:3000), which also runs the workflows.
 
-## Docker Deployment
+## Deployment
 
-You can run the entire stack using Docker Compose:
+FlowForge runs as a single service (API + workflow runner + website) plus a PostgreSQL database.
 
-\`\`\`bash
-docker-compose up --build -d
-\`\`\`
-
-- **Web UI**: http://localhost:8080
-- **API**: http://localhost:3000
+- **Render + Supabase (free)**: see [DEPLOY.md](DEPLOY.md).
+- **Your own server**: fill in `.env` (see `.env.example`), run `docker compose up --build -d`, and open http://localhost:3000.
 
 ## Testing
 
-Run the test suite across all workspaces:
-
-\`\`\`bash
-npm run test
-\`\`\`
+```bash
+npm test
+```
 
 ## Architecture
 
-FlowForge uses a monorepo architecture managed by NPM workspaces.
-- `apps/web`: The React-based frontend application.
-- `apps/api`: The Fastify backend providing REST endpoints and Socket.IO for real-time telemetry.
-- `apps/worker`: The headless BullMQ worker that executes the workflow graphs.
-- `packages/workflow-engine`: The core orchestration logic and node executors.
-- `packages/shared`: Shared types, Zod validation schemas, constants, and the safe condition evaluator.
+FlowForge is a monorepo managed with npm workspaces.
+- `apps/web`: The React frontend.
+- `apps/api`: The Fastify backend: REST endpoints, Socket.IO live updates, the workflow runner (`src/jobs`), schedules, and serving the built website.
+- `packages/workflow-engine`: The core orchestration logic and step executors.
+- `packages/shared`: Shared types, Zod validation schemas, and the safe condition evaluator.
 - `prisma/`: Database schema (`schema.prisma`) and migrations.
 - `tools/webhook-tester`: A standalone browser tool for firing signed test events at workflow endpoints (see its README).
 
 ## Security
-- API endpoints are protected using Fastify Helmet.
-- Request rate limiting is configured via `@fastify/rate-limit`.
-- Passwords are securely hashed with `bcryptjs`.
-- Session management via JWT tokens.
-
+- Security headers with Fastify Helmet, and rate limits on all endpoints (tighter on sign-in and sign-up).
+- Passwords hashed with bcrypt; accounts lock after repeated failed sign-ins.
+- Saved passwords and connection strings are encrypted at rest (AES-256-GCM).
+- Workflow steps cannot reach the server's private network.

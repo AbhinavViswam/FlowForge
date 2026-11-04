@@ -8,6 +8,7 @@ import { Button, Input, Field, Card, Select, Toggle, Badge } from './ui';
 type Conn = {
   id: string;
   name: string;
+  type: 'smtp' | 'brevo';
   username: string;
   host: string;
   port: number;
@@ -15,7 +16,8 @@ type Conn = {
   fromAddress: string;
 };
 
-const EMPTY = { name: '', username: '', password: '', host: 'smtp.gmail.com', port: 587, secure: false, fromAddress: '' };
+// "smtp" = Gmail App Password or any SMTP server; "brevo" = Brevo API key (HTTPS).
+const EMPTY = { type: 'smtp' as 'smtp' | 'brevo', name: '', username: '', password: '', host: 'smtp.gmail.com', port: 587, secure: false, fromAddress: '' };
 
 export default function Connections() {
   const [list, setList] = useState<Conn[]>([]);
@@ -43,8 +45,9 @@ export default function Connections() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.username || !form.password) {
-      toast.error('Name, account email and app password are required.');
+    const brevo = form.type === 'brevo';
+    if (!form.name || !form.password || (brevo ? !form.fromAddress : !form.username)) {
+      toast.error(brevo ? 'Name, API key and sender address are required.' : 'Name, account email and app password are required.');
       return;
     }
     setSaving(true);
@@ -95,7 +98,7 @@ export default function Connections() {
       {/* Security note */}
       <div className="flex items-start gap-2 rounded-lg border border-ok/25 bg-ok/10 px-3 py-2 text-[11px] text-muted mb-5">
         <ShieldCheck size={14} className="mt-0.5 shrink-0 text-ok" />
-        <span>App passwords are <b className="text-ink">encrypted</b> before they're stored and are never shown again or sent back to the browser.</span>
+        <span>Passwords and API keys are <b className="text-ink">encrypted</b> before they're stored and are never shown again or sent back to the browser.</span>
       </div>
 
       {/* Existing connections */}
@@ -103,7 +106,7 @@ export default function Connections() {
         <div className="text-sm text-muted">Loading…</div>
       ) : list.length === 0 && !adding ? (
         <div className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">
-          No connections yet. Click <b className="text-ink">Add</b> to connect a Gmail or SMTP account.
+          No connections yet. Click <b className="text-ink">Add</b> to connect Gmail, another SMTP account, or Brevo.
         </div>
       ) : (
         <div className="flex flex-col gap-2 mb-5">
@@ -112,10 +115,12 @@ export default function Connections() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-ink truncate">{c.name}</span>
-                  <Badge tone="neutral">{c.host}</Badge>
+                  <Badge tone="neutral">{c.type === 'brevo' ? 'Brevo' : c.host}</Badge>
                 </div>
                 <div className="text-xs text-muted truncate mt-0.5">
-                  {c.username}{c.fromAddress && c.fromAddress !== c.username ? ` · from ${c.fromAddress}` : ''} · port {c.port}{c.secure ? ' (SSL)' : ''}
+                  {c.type === 'brevo'
+                    ? `from ${c.fromAddress}`
+                    : `${c.username}${c.fromAddress && c.fromAddress !== c.username ? ` · from ${c.fromAddress}` : ''} · port ${c.port}${c.secure ? ' (SSL)' : ''}`}
                 </div>
               </div>
               <Button size="sm" variant="ghost" className="text-danger" loading={deletingId === c.id} onClick={() => handleDelete(c.id)}>
@@ -129,6 +134,27 @@ export default function Connections() {
       {/* Add form */}
       {adding && (
         <form onSubmit={handleCreate} className="flex flex-col gap-4 rounded-xl border border-line p-4">
+          <Field label="Type">
+            <Select value={form.type} onChange={(e) => set('type', e.target.value)}>
+              <option value="smtp">Gmail / SMTP (app password)</option>
+              <option value="brevo">Brevo (API key, works where SMTP is blocked)</option>
+            </Select>
+          </Field>
+
+          {form.type === 'brevo' ? (
+            <>
+              <Field label="Connection name" hint="A label you'll recognise.">
+                <Input placeholder="My Brevo" value={form.name} onChange={(e) => set('name', e.target.value)} />
+              </Field>
+              <Field label="Brevo API key" hint="Brevo → Settings → SMTP & API → API keys.">
+                <Input type="password" placeholder="xkeysib-…" value={form.password} onChange={(e) => set('password', e.target.value)} />
+              </Field>
+              <Field label="Sender address" hint={'Must be a sender verified in Brevo. "Name <you@example.com>" works too.'}>
+                <Input placeholder="you@example.com" value={form.fromAddress} onChange={(e) => set('fromAddress', e.target.value)} />
+              </Field>
+            </>
+          ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Connection name" hint="A label you'll recognise.">
               <Input placeholder="My Gmail" value={form.name} onChange={(e) => set('name', e.target.value)} />
@@ -153,6 +179,8 @@ export default function Connections() {
                 <div className="flex items-center gap-2 h-10"><Toggle checked={form.secure} onChange={(v) => set('secure', v)} /><span className="text-sm text-muted">{form.secure ? 'On (465)' : 'Off (587 STARTTLS)'}</span></div>
               </Field>
             </div>
+          )}
+          </>
           )}
 
           <div className="flex items-center gap-3 justify-end">

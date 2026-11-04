@@ -2,8 +2,10 @@ import { interpolate } from './utils';
 import { evaluateCondition } from '@flowforge/shared';
 import { assertPublicHost, safeFetch } from './network-guard';
 import { openDefinition } from './secrets';
+import { sendBrevoEmail } from './brevo';
 
 export { assertPublicHost, isPrivateAddress, privateNetworkAllowed, safeFetch } from './network-guard';
+export { sendBrevoEmail, checkBrevoKey, parseAddress } from './brevo';
 export {
   encryptSecret, decryptSecret, hasEncryptionKey, openSecret, isSealed,
   sealDefinition, maskDefinition, openDefinition, SECRET_FIELDS,
@@ -18,7 +20,12 @@ function isFlowForgeDatabase(connectionString: string): boolean {
   const parse = (s: string) => {
     try {
       const u = new URL(s);
-      return { host: u.hostname.replace(/^\[|\]$/g, '').toLowerCase(), port: u.port || '5432', db: decodeURIComponent(u.pathname.replace(/^\//, '')) };
+      return {
+        host: u.hostname.replace(/^\[|\]$/g, '').toLowerCase(),
+        port: u.port || '5432',
+        db: decodeURIComponent(u.pathname.replace(/^\//, '')),
+        user: decodeURIComponent(u.username).toLowerCase(),
+      };
     } catch {
       return null;
     }
@@ -28,7 +35,13 @@ function isFlowForgeDatabase(connectionString: string): boolean {
   if (!app || !target) return false;
   const local = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0', 'host.docker.internal']);
   const sameHost = app.host === target.host || (local.has(app.host) && local.has(target.host));
-  return sameHost && app.port === target.port && app.db === target.db;
+  // Hosted poolers (e.g. Supabase) give every customer the same host and database
+  // name and tell projects apart by the part of the user name after the first dot
+  // ("postgres.<project>"), so that part must match too. Any user of FlowForge's
+  // own project counts as FlowForge's database.
+  const tenant = (user: string) => (user.includes('.') ? user.slice(user.indexOf('.') + 1) : '');
+  const sameUser = tenant(app.user) === tenant(target.user);
+  return sameHost && app.port === target.port && app.db === target.db && sameUser;
 }
 
 export interface WorkflowNodeDef {
@@ -123,6 +136,9 @@ function conditionInput(nodeConfig: any): any {
 // (worker/API) after decrypting the user's secret. The engine never touches the
 // database or the encryption key itself.
 export interface SmtpCredentials {
+  // "brevo": send over Brevo's HTTPS API; `pass` holds the API key and `from` the
+  // verified sender. Otherwise (default) an SMTP login.
+  provider?: 'smtp' | 'brevo';
   host: string;
   port: number;
   secure: boolean;
@@ -393,8 +409,17 @@ export async function executeWorkflow(
           let smtpPort = 587;
           let smtpSecure = false;
           let connFrom = '';
+          // Brevo (HTTPS) is used when the saved connection is a Brevo one, or when
+          // there's no saved connection and BREVO_API_KEY is set on the server.
+          let brevoKey = '';
 
-          if (savedConn) {
+          if (savedConn?.provider === 'brevo') {
+            brevoKey = savedConn.pass;
+            connFrom = savedConn.from || '';
+          } else if (!savedConn && process.env.BREVO_API_KEY) {
+            brevoKey = process.env.BREVO_API_KEY;
+            connFrom = process.env.EMAIL_FROM || '';
+          } else if (savedConn) {
             // A user-entered SMTP host must be a public server, not something internal.
             await assertPublicHost(savedConn.host);
             smtpHost = savedConn.host;
@@ -423,7 +448,8 @@ export async function executeWorkflow(
             connFrom ||
             process.env.EMAIL_FROM ||
             // Gmail rewrites the From to the authenticated account anyway, so default to it.
-            (useSmtp ? smtpUser : 'onboarding@resend.dev');
+            // Brevo has no default: it needs a verified sender (checked when sending).
+            (brevoKey ? '' : useSmtp ? smtpUser : 'onboarding@resend.dev');
 
           if (!toAddress) throw new Error('Email "To" address is missing');
           // A placeholder whose field isn't in the event stays as literal "{{...}}"
@@ -442,7 +468,31 @@ export async function executeWorkflow(
           const looksHtml = /<[a-z][\s\S]*>/i.test(emailBody);
           const timeoutMs = parseInt(nodeConfig.timeoutMs) || 10000;
 
-          if (useSmtp) {
+          if (brevoKey) {
+            addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress} via Brevo`, nodeId);
+            const recipients = toAddress.split(',').map((a: string) => a.trim()).filter(Boolean);
+            const { messageId } = await sendBrevoEmail({
+              apiKey: brevoKey,
+              from: fromAddress,
+              to: recipients,
+              subject,
+              ...(looksHtml ? { html: emailBody } : { text: emailBody || subject }),
+              timeoutMs,
+            });
+            outputData = {
+              ...incomingPayload,
+              [node.id]: {
+                sent: true,
+                id: messageId,
+                to: toAddress,
+                subject,
+                from: fromAddress,
+                provider: 'brevo',
+                timestamp: new Date().toISOString()
+              }
+            };
+            addLog('success', `[Action] ${nodeName}: Email sent via Brevo (id ${messageId || 'n/a'})`, nodeId);
+          } else if (useSmtp) {
             addLog('info', `[Action] ${nodeName}: Sending email to ${toAddress} via SMTP (${smtpHost}:${smtpPort})`, nodeId);
             const nodemailer = require('nodemailer');
             const transporter = nodemailer.createTransport({

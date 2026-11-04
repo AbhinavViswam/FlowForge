@@ -9,6 +9,8 @@ services:
     name: flowforge
     runtime: docker
     plan: free
+    # Closest Render region to the Supabase database (Tokyo, ap-northeast-1).
+    region: singapore
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:

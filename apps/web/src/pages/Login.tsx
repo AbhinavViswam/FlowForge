@@ -8,11 +8,13 @@ import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
 import { Button, Input, Field } from '../components/ui';
+import { useAuthOptions } from '../hooks/useAuthOptions';
 
 export default function Login() {
   const { login } = useAuth();
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const authOptions = useAuthOptions();
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -53,7 +55,7 @@ export default function Login() {
 
             <Field
               label="Password"
-              action={<Link to="/forgot-password" className="text-xs font-medium text-accent hover:underline">Forgot password?</Link>}
+              action={authOptions?.passwordReset ? <Link to="/forgot-password" className="text-xs font-medium text-accent hover:underline">Forgot password?</Link> : undefined}
               error={errors.password?.message}
             >
               <div className="relative">

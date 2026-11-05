@@ -5,6 +5,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound } from 'lucid
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
 import { Button, Input, Field } from '../components/ui';
+import { useAuthOptions } from '../hooks/useAuthOptions';
 
 const errorText = (err: any, fallback: string) =>
   err?.response?.data?.error || err?.response?.data?.message || fallback;
@@ -24,6 +25,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const codeRef = useRef<HTMLInputElement>(null);
+  const authOptions = useAuthOptions();
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -105,7 +107,12 @@ export default function ForgotPassword() {
         </div>
 
         <div className="rounded-2xl border border-line bg-surface shadow-card p-6 sm:p-7">
-          {sentTo ? (
+          {authOptions && !authOptions.passwordReset ? (
+            <div className="flex flex-col gap-4 text-center">
+              <p className="text-sm text-muted">Password reset isn't available yet, because this site can't send email.</p>
+              <Link to="/login" className="font-medium text-accent hover:underline text-sm">Back to sign in</Link>
+            </div>
+          ) : sentTo ? (
             <form className="flex flex-col gap-5" onSubmit={submitReset}>
               <div className="flex justify-center">
                 <div className="w-12 h-12 rounded-xl bg-accent-soft text-accent grid place-items-center"><KeyRound size={22} /></div>

@@ -95,9 +95,14 @@ export async function sendSystemEmail(mail: SystemEmail): Promise<SendResult> {
 export async function verifyMailConfig(): Promise<{ ok: boolean; message: string }> {
   const config = getMailConfig();
   if (config.kind === 'none') {
-    return isProduction()
-      ? { ok: false, message: 'No email provider configured. Sign-ups WILL FAIL: set BREVO_API_KEY + EMAIL_FROM, GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY.' }
-      : { ok: true, message: 'No email provider configured: sign-up codes will be printed in this log (development only).' };
+    const verification = /^(1|true|yes)$/i.test(String(process.env.REQUIRE_EMAIL_VERIFICATION || '').trim());
+    if (verification && isProduction()) {
+      return { ok: false, message: 'REQUIRE_EMAIL_VERIFICATION is on but no email provider is configured. Sign-ups WILL FAIL: set BREVO_API_KEY + EMAIL_FROM, GMAIL_USER/GMAIL_APP_PASSWORD, SMTP_* or RESEND_API_KEY.' };
+    }
+    if (isProduction()) {
+      return { ok: true, message: 'No email provider configured: sign-up works without email confirmation, and "Forgot password" is turned off.' };
+    }
+    return { ok: true, message: 'No email provider configured: codes will be printed in this log (development only).' };
   }
   if (config.kind === 'brevo') {
     if (!config.from) return { ok: false, message: 'BREVO_API_KEY is set but EMAIL_FROM is empty: set it to a sender verified in Brevo. Sign-ups WILL FAIL.' };

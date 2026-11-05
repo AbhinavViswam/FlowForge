@@ -21,8 +21,9 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (data: LoginInput) => Promise<void>;
-  // Starts sign-up and emails a 6-digit code; the account exists only after verifyEmail.
-  register: (data: RegisterInput) => Promise<{ email: string; cooldownSeconds: number }>;
+  // Creates the account and signs in (pending: false), or, when the server requires
+  // email verification, emails a 6-digit code (pending: true) for verifyEmail.
+  register: (data: RegisterInput) => Promise<{ pending: boolean; email: string; cooldownSeconds: number }>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   resendCode: (email: string) => Promise<{ cooldownSeconds: number }>;
   // Forgot password: emails a 6-digit code, then resetPassword sets the new password and signs in.
@@ -71,7 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (data: RegisterInput) => {
     const res = await api.post('/auth/register', data);
-    return { email: res.data.email as string, cooldownSeconds: Number(res.data.cooldownSeconds) || 60 };
+    if (!res.data.pending) {
+      await checkAuth();
+      navigate('/dashboard');
+      return { pending: false, email: data.email, cooldownSeconds: 0 };
+    }
+    return { pending: true, email: res.data.email as string, cooldownSeconds: Number(res.data.cooldownSeconds) || 60 };
   };
 
   const verifyEmail = async (email: string, code: string) => {

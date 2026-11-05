@@ -74,6 +74,32 @@ describe('email step', () => {
     expect(res.nodeResults.e.error).toMatch(/customer\.email/)
   })
 
+  it('fails on a live server with no email service instead of pretending', async () => {
+    const before = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      const res = await run(email())
+      expect(res.nodeResults.e.status).toBe('failed')
+      expect(res.nodeResults.e.error).toMatch(/No email service is set up/)
+    } finally { process.env.NODE_ENV = before }
+  })
+
+  it('AI step fails on a live server with no AI key instead of making something up', async () => {
+    const before = { env: process.env.NODE_ENV, g: process.env.GEMINI_API_KEY, a: process.env.ANTHROPIC_API_KEY }
+    process.env.NODE_ENV = 'production'
+    delete process.env.GEMINI_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+    try {
+      const res = await run({ actionType: 'ai', userInput: 'hello' })
+      expect(res.nodeResults.e.status).toBe('failed')
+      expect(res.nodeResults.e.error).toMatch(/AI is not set up/)
+    } finally {
+      process.env.NODE_ENV = before.env
+      if (before.g !== undefined) process.env.GEMINI_API_KEY = before.g
+      if (before.a !== undefined) process.env.ANTHROPIC_API_KEY = before.a
+    }
+  })
+
   it('rejects an invalid address', async () => {
     const res = await run(email('not-an-address'))
     expect(res.nodeResults.e.status).toBe('failed')

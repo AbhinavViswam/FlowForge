@@ -28,13 +28,9 @@ services:
       # connection strings can't be decrypted.
       - key: ENCRYPTION_KEY
         sync: false
-      # Sign-up and password-reset emails. Render's free plan blocks SMTP (Gmail),
-      # so FlowForge sends through Brevo's HTTPS API instead.
-      - key: BREVO_API_KEY
-        sync: false
-      # A sender verified in Brevo, e.g. "FlowForge <you@example.com>"
-      - key: EMAIL_FROM
-        sync: false
+      # Email is optional. Without it, sign-up needs no confirmation code and
+      # "Forgot password" is hidden. To turn email on later, add BREVO_API_KEY and
+      # EMAIL_FROM in the Render dashboard (Render's free plan blocks Gmail/SMTP).
       # AI transform step
       - key: GEMINI_API_KEY
         sync: false

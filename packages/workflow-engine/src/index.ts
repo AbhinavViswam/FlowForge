@@ -568,9 +568,12 @@ export async function executeWorkflow(
               throw err;
             }
           } else {
-            // No SMTP creds and no Resend key — fall back to a clearly-marked
-            // simulation so flows still run in development without sending anything.
-            addLog('warn', `[Action] ${nodeName}: No email provider configured (set SMTP_*/GMAIL_* or RESEND_API_KEY) — simulating send`, nodeId);
+            // On a live server, never pretend an email went out.
+            if (process.env.NODE_ENV === 'production') {
+              throw new Error('No email service is set up. Choose a saved Brevo or Gmail account under "Send from" (Account → Connections).');
+            }
+            // Development: a clearly-marked simulation so flows still run without sending anything.
+            addLog('warn',`[Action] ${nodeName}: No email provider configured (set SMTP_*/GMAIL_* or RESEND_API_KEY) — simulating send`, nodeId);
             await new Promise(r => setTimeout(r, 300));
             outputData = {
               ...incomingPayload,
@@ -781,6 +784,10 @@ export async function executeWorkflow(
             };
             addLog('success', `[Action] ${nodeName}: AI transform complete (${resp.usage?.output_tokens ?? '?'} output tokens)`, nodeId);
           } else {
+            // On a live server, never return a made-up AI result.
+            if (process.env.NODE_ENV === 'production') {
+              throw new Error('AI is not set up on this server (GEMINI_API_KEY is missing).');
+            }
             addLog('warn', `[Action] ${nodeName}: No AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY) — simulating`, nodeId);
             await new Promise(r => setTimeout(r, 400));
             outputData = {

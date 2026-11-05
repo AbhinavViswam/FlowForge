@@ -48,6 +48,7 @@ export default function Signup() {
     try {
       setError('');
       const res = await registerUser(data);
+      if (!res.pending) return; // account created and signed in
       setPendingEmail(res.email);
       setCooldown(res.cooldownSeconds);
       setCode('');
@@ -187,7 +188,7 @@ export default function Signup() {
                 </Field>
 
                 <Button type="submit" loading={isSubmitting} className="w-full group">
-                  {isSubmitting ? 'Sending code…' : 'Continue'}
+                  {isSubmitting ? 'Creating account…' : 'Create account'}
                   {!isSubmitting && <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />}
                 </Button>
               </form>

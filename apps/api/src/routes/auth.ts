@@ -5,8 +5,17 @@ import crypto from 'crypto'
 import {
   registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema,
 } from '@flowforge/shared'
-import { sendSystemEmail } from '../mailer'
+import { sendSystemEmail, getMailConfig } from '../mailer'
 import { cookieOptions } from '../origins'
+
+// Sign-up confirms the email with a 6-digit code only when REQUIRE_EMAIL_VERIFICATION
+// is on (it needs an email service). Otherwise the account is created right away.
+export const emailVerificationRequired = () =>
+  /^(1|true|yes)$/i.test(String(process.env.REQUIRE_EMAIL_VERIFICATION || '').trim())
+// Forgot password needs an email service to send the code (in development the
+// code is printed in the API log instead).
+export const passwordResetAvailable = () =>
+  getMailConfig().kind !== 'none' || process.env.NODE_ENV !== 'production'
 
 const CODE_TTL_MS = 10 * 60 * 1000   // a code is valid for 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000 // at most one email per minute per address
@@ -83,14 +92,27 @@ export default async function authRoutes(fastify: FastifyInstance) {
     reply.setCookie('token', token, { ...cookieOptions(), maxAge: 60 * 60 * 24 * 7 }) // 1 week
   }
 
-  // Step 1 of sign-up: remember the details and email a 6-digit code. No account
-  // exists until the code is confirmed in /verify-email.
+  // What the sign-in pages should offer on this server.
+  fastify.get('/options', async () => ({
+    emailVerification: emailVerificationRequired(),
+    passwordReset: passwordResetAvailable(),
+  }))
+
+  // Sign-up. Without email verification the account is created and signed in
+  // right away. With it, the details are kept and a 6-digit code is emailed; the
+  // account is created only once the code is confirmed in /verify-email.
   fastify.post('/register', EMAIL_LIMIT, async (request, reply) => {
     const data = registerSchema.parse(request.body)
     const email = normalizeEmail(data.email)
 
     if (await findUserByEmail(email)) {
       return reply.code(400).send({ error: 'An account with this email already exists. Sign in instead.' })
+    }
+
+    if (!emailVerificationRequired()) {
+      const user = await prisma.user.create({ data: { email, passwordHash: await bcrypt.hash(data.password, 10) } })
+      setSessionCookie(reply, user)
+      return { success: true, pending: false }
     }
 
     const pending = await prisma.pendingSignup.findUnique({ where: { email } })
@@ -226,6 +248,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // Forgot password, step 1: email a 6-digit code. The answer is the same whether
   // or not an account exists, so this can't be used to find out who has one.
   fastify.post('/forgot-password', EMAIL_LIMIT, async (request, reply) => {
+    if (!passwordResetAvailable()) {
+      return reply.code(503).send({ error: "Password reset isn't available on this server yet (no email service is set up)." })
+    }
     const email = normalizeEmail(forgotPasswordSchema.parse(request.body).email)
     const answer = { sent: true, email, cooldownSeconds: RESEND_COOLDOWN_MS / 1000 }
 

@@ -63,8 +63,10 @@ resetDatabase()
 
 const sentEmails: Array<{ to: string; subject: string; text: string }> = []
 vi.mock('../db', () => ({ prisma: fakePrisma }))
+let mailKind = 'brevo' // pretend an email service is set up unless a test changes it
 vi.mock('../mailer', () => ({
   sendSystemEmail: vi.fn(async (mail: any) => { sentEmails.push(mail); return { delivered: true, provider: 'log' } }),
+  getMailConfig: () => ({ kind: mailKind }),
 }))
 
 const { default: authRoutes, MAX_FAILED_LOGINS } = await import('../routes/auth')
@@ -93,9 +95,13 @@ const sessionCookie = (res: any) => String(res.headers['set-cookie'] || '').spli
 const lastCode = () => sentEmails[sentEmails.length - 1]?.text.match(/\b(\d{6})\b/)?.[1] || ''
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+const ENV_BEFORE = { NODE_ENV: process.env.NODE_ENV, REQUIRE_EMAIL_VERIFICATION: process.env.REQUIRE_EMAIL_VERIFICATION }
 beforeEach(() => {
   resetDatabase()
   sentEmails.length = 0
+  mailKind = 'brevo'
+  for (const [k, v] of Object.entries(ENV_BEFORE)) { if (v === undefined) delete process.env[k]; else process.env[k] = v }
+  delete process.env.REQUIRE_EMAIL_VERIFICATION
 })
 
 describe('sign-in', () => {
@@ -231,6 +237,7 @@ describe('forgot password', () => {
   })
 
   it('a sign-up code cannot be used as a reset code', async () => {
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true'
     const app = await buildApp()
     await post(app, '/auth/register', { email: 'new@example.com', password: 'a-good-password' })
     const signupCode = lastCode()
@@ -239,6 +246,49 @@ describe('forgot password', () => {
     if (lastCode() === signupCode) return // same 6 digits by chance (1 in a million)
     const res = await post(app, '/auth/reset-password', { email: 'new@example.com', code: signupCode, password: 'brand-new-password' })
     expect(res.statusCode).toBe(400)
+  })
+})
+
+describe('sign-up', () => {
+  it('creates the account and signs in right away (no email code)', async () => {
+    const app = await buildApp()
+    const res = await post(app, '/auth/register', { email: 'New@Example.com', password: 'a-good-password' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ success: true, pending: false })
+    expect(sentEmails).toHaveLength(0)
+    expect(fakePrisma.user.rows.map((u: any) => u.email)).toEqual(['new@example.com'])
+    expect((await app.inject({ url: '/auth/me', headers: { cookie: sessionCookie(res) } })).statusCode).toBe(200)
+    expect((await post(app, '/auth/login', { email: 'new@example.com', password: 'a-good-password' })).statusCode).toBe(200)
+  })
+
+  it('refuses a duplicate email and a short password', async () => {
+    const app = await buildApp()
+    await addUser()
+    expect((await post(app, '/auth/register', { email: EMAIL, password: 'a-good-password' })).statusCode).toBe(400)
+    expect((await post(app, '/auth/register', { email: 'x@example.com', password: 'short' })).statusCode).toBe(400)
+  })
+
+  it('sends a 6-digit code first when REQUIRE_EMAIL_VERIFICATION is on', async () => {
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true'
+    const app = await buildApp()
+    const res = await post(app, '/auth/register', { email: 'v@example.com', password: 'a-good-password' })
+    expect(res.json()).toMatchObject({ pending: true })
+    expect(fakePrisma.user.rows).toHaveLength(0)
+    const done = await post(app, '/auth/verify-email', { email: 'v@example.com', code: lastCode() })
+    expect(done.statusCode).toBe(200)
+    expect(fakePrisma.user.rows).toHaveLength(1)
+  })
+
+  it('tells the website which options are available', async () => {
+    const app = await buildApp()
+    process.env.NODE_ENV = 'production'
+    mailKind = 'none'
+    expect((await app.inject({ url: '/auth/options' })).json()).toEqual({ emailVerification: false, passwordReset: false })
+    const fp = await post(app, '/auth/forgot-password', { email: EMAIL })
+    expect(fp.statusCode).toBe(503)
+    expect(fp.json().error).toMatch(/isn't available/)
+    mailKind = 'brevo'
+    expect((await app.inject({ url: '/auth/options' })).json()).toEqual({ emailVerification: false, passwordReset: true })
   })
 })
 
